@@ -224,13 +224,12 @@
     <div class="hero-body">
       <div class="container is-max-desktop">
         <h2 class="title is-3 has-text-centered">Video</h2>
-        <!-- TODO: put the YouTube video ID (the part after "watch?v=") into data-youtube-id.
-             The iframe is inserted automatically; nothing else needs to change. -->
-        <div class="publication-video video-slot" id="video-slot" data-youtube-id="">
+        <!-- The YouTube player is inserted from data-youtube-id by setupVideo() in main.js;
+             the placeholder below is only shown without JavaScript. -->
+        <div class="publication-video video-slot" id="video-slot" data-youtube-id="PAtPNwVovnM">
           <div class="video-placeholder">
             <i class="fab fa-youtube fa-3x"></i>
-            <p>The video will appear here soon.</p>
-            <a href="https://mrs.fel.cvut.cz/reflection-based-relative-localization" target="_blank" rel="noopener">Watch it on the MRS group website <i class="fas fa-external-link-alt"></i></a>
+            <a href="https://youtu.be/PAtPNwVovnM" target="_blank" rel="noopener">Watch the video on YouTube <i class="fas fa-external-link-alt"></i></a>
           </div>
         </div>
       </div>
