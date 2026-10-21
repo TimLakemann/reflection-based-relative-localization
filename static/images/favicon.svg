@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- An LED above a level surface and its elongated reflection below it -->
+  <defs><clipPath id="c"><rect width="64" height="64" rx="14"/></clipPath></defs>
+  <g clip-path="url(#c)">
+    <rect width="64" height="64" fill="#101A1D"/>
+    <rect y="35" width="64" height="29" fill="#173A47"/>
+    <line x1="0" y1="35" x2="64" y2="35" stroke="#8FB3C2" stroke-width="2.5"/>
+  </g>
+  <circle cx="32" cy="18" r="10" fill="#6C9DF0" opacity=".35"/>
+  <circle cx="32" cy="18" r="6" fill="#fff" stroke="#6C9DF0" stroke-width="2.5"/>
+  <ellipse cx="32" cy="49" rx="5" ry="10" fill="#EF7058"/>
+</svg>

@@ -1,0 +1,1927 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reflection Localization Bench</title>
+<link rel="icon" type="image/svg+xml" href="static/images/favicon.svg">
+<link rel="icon" type="image/x-icon" href="static/images/favicon.ico" sizes="48x48">
+<meta name="description" content="Interactive simulation of reflection-based relative localization for cooperative UAV teams using active markers.">
+<style>
+  [hidden] { display: none !important; }
+  :root { color-scheme: light; }
+  /* ---------------------------------------------------------------
+     Layout: a ground-station bench. One large 3D stage with the
+     instrument cards beneath it; the parameter rail on the right.
+     Colour carries the method's own pairing, taken from the paper's
+     figures: blue = the direct LED and its cone, red = the surface
+     reflection and its cone. Amber marks samples that fall in both
+     cones; teal is what the particle filter believes. Ink is truth.
+     --------------------------------------------------------------- */
+  :root {
+    --ground: #E7ECEC;
+    --panel: #FBFDFD;
+    --panel-2: #EFF4F4;
+    --sky-0: #C9D6D8;
+    --sky-1: #E7ECEC;
+    --line: #CBD6D7;
+    --line-soft: #DFE7E8;
+    --ink: #101A1D;
+    --ink-2: #38484D;
+    --ink-dim: #6B7B80;
+    --grid: #A9BABD;
+    --dir: #2459B8;
+    --ref: #C2412B;
+    --inl: #9A6205;
+    --est: #0B7381;
+    --ok: #2C7148;
+    --floor: #C3CDCD;
+    --water: #9FBFCB;
+    --sensor: #050708;
+    --sensor-ink: #8FA3A8;
+    --shadow: 0 1px 2px rgba(16, 26, 29, .07), 0 8px 24px rgba(16, 26, 29, .06);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo,
+            Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0B1114; --panel: #121B1F; --panel-2: #162126;
+      --sky-0: #0A1013; --sky-1: #131E22;
+      --line: #223137; --line-soft: #1B272C;
+      --ink: #DCE7E9; --ink-2: #A7B9BD; --ink-dim: #71868C;
+      --grid: #2A3D44;
+      --dir: #6C9DF0; --ref: #EF7058; --inl: #E3A53C; --est: #45BECD; --ok: #5FBE85;
+      --floor: #1E2B30; --water: #123543;
+      --sensor: #030505; --sensor-ink: #7D9298;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 30px rgba(0, 0, 0, .35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0B1114; --panel: #121B1F; --panel-2: #162126;
+    --sky-0: #0A1013; --sky-1: #131E22;
+    --line: #223137; --line-soft: #1B272C;
+    --ink: #DCE7E9; --ink-2: #A7B9BD; --ink-dim: #71868C;
+    --grid: #2A3D44;
+    --dir: #6C9DF0; --ref: #EF7058; --inl: #E3A53C; --est: #45BECD; --ok: #5FBE85;
+    --floor: #1E2B30; --water: #123543;
+    --sensor: #030505; --sensor-ink: #7D9298;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 30px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1480px; margin: 0 auto; padding: 20px 20px 40px; }
+
+  /* ---- masthead ---- */
+  .mast {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
+    padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--line);
+  }
+  .mast h1 { font-size: 20px; font-weight: 620; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+  .mast .spec { font-family: var(--mono); font-size: 11.5px; color: var(--ink-dim); letter-spacing: .02em; }
+  .mast .spacer { flex: 1 1 auto; }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-2); border: 1px solid var(--line); border-radius: 2px;
+    padding: 3px 8px; background: var(--panel-2); white-space: nowrap;
+  }
+  .chip b { color: var(--ok); font-weight: 620; }
+  a.chip.back { text-decoration: none; }
+  a.chip.back:hover { border-color: var(--est); color: var(--ink); }
+
+  /* ---- console ---- */
+  .console { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+  @media (max-width: 1020px) { .console { grid-template-columns: minmax(0, 1fr); } }
+  .main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  .stage {
+    position: relative; background: var(--sky-1); height: clamp(360px, 58vh, 620px);
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden; box-shadow: var(--shadow);
+  }
+  #view { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  #view.dragging { cursor: grabbing; }
+  #view.grab-uav { cursor: move; }
+
+  .hud {
+    position: absolute; left: 12px; top: 11px; display: flex; flex-direction: column; gap: 1px;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-2); pointer-events: none;
+    text-shadow: 0 1px 2px var(--sky-1);
+  }
+  .hud .big {
+    font-size: 25px; line-height: 1.1; color: var(--ink); font-weight: 600;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .hud .unit { font-size: 11px; color: var(--ink-dim); font-weight: 400; letter-spacing: 0; }
+  .hud .lbl { color: var(--ink-dim); }
+  .hud span { font-variant-numeric: tabular-nums; }
+  .hud .hint { margin-top: 4px; font-size: 10.5px; }
+  @media (hover: none) { .hud .hint { display: none; } }
+
+  .stamp {
+    position: absolute; right: 12px; top: 11px; font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: .07em; text-transform: uppercase; padding: 3px 9px; border-radius: 2px;
+    border: 1px solid currentColor; pointer-events: none; max-width: 60%; text-align: right;
+    background: var(--sky-1);
+  }
+  .stamp.ok { color: var(--ok); }
+  .stamp.lost { color: var(--ref); }
+
+  .legend {
+    position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; flex-wrap: wrap; gap: 4px 14px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-dim); pointer-events: none;
+    text-shadow: 0 1px 2px var(--sky-1);
+  }
+  .legend i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; vertical-align: -1px; }
+  .legend i.sq { border-radius: 1px; }
+  .hint3d {
+    position: absolute; right: 12px; top: 42px; font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-dim); pointer-events: none; text-align: right; text-shadow: 0 1px 2px var(--sky-1);
+  }
+  @media (max-width: 720px) { .hint3d { display: none; } }
+
+  /* ---- cards ---- */
+  .instruments {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
+    grid-template-areas: "cam pipe" "cam tilt" "trace trace";
+  }
+  #camCard { grid-area: cam; } #pipeCard { grid-area: pipe; } #tiltCard { grid-area: tilt; } #traceCard { grid-area: trace; }
+  #tiltCard { display: flex; flex-direction: column; }
+  @media (max-width: 760px) {
+    .instruments { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cam" "pipe" "tilt" "trace"; }
+  }
+  .rail { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+    padding: 13px 14px 15px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .card > h2 {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-dim); margin: 0 0 11px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  }
+  .card > h2 .note { text-transform: none; letter-spacing: .02em; font-weight: 400; text-align: right; }
+  .card p.cap { font-size: 12px; color: var(--ink-dim); line-height: 1.45; margin: 9px 0 0; }
+  .card p.cap b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- controls ---- */
+  .ctl { display: grid; gap: 2px; margin-bottom: 11px; }
+  .ctl:last-child { margin-bottom: 0; }
+  .ctl .row {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    font-family: var(--mono); font-size: 11.5px;
+  }
+  .ctl .name { color: var(--ink-2); }
+  .ctl .name sub, .ctl .name sup { font-size: 9px; }
+  .ctl .val { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ctl .val.hot { color: var(--ref); }
+  .ctl .hint { font-size: 11.5px; color: var(--ink-dim); line-height: 1.4; }
+  .ctl.off { opacity: .45; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 18px;
+    background: transparent; margin: 0; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-moz-range-track { height: 2px; background: var(--line); border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 13px; height: 13px; margin-top: -5.5px;
+    border-radius: 50%; background: var(--panel); border: 2px solid var(--est);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%; background: var(--panel); border: 2px solid var(--est);
+  }
+  input[type=range]:focus-visible { outline: 2px solid var(--est); outline-offset: 3px; }
+  input[type=range]:disabled { cursor: default; }
+
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btns + .btns { margin-top: 7px; }
+  button {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .03em; color: var(--ink-2);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 2px;
+    padding: 5px 10px; cursor: pointer;
+  }
+  button:hover { border-color: var(--est); color: var(--ink); }
+  button[aria-pressed="true"] { background: var(--est); border-color: var(--est); color: var(--panel); }
+  button:focus-visible { outline: 2px solid var(--est); outline-offset: 2px; }
+  .sub-h {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-dim); margin: 12px 0 6px;
+  }
+
+  /* ---- pipeline list ---- */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .steps li { margin: 0; }
+  .step {
+    width: 100%; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px;
+    align-items: baseline; text-align: left; padding: 6px 8px; background: transparent;
+    border: 1px solid transparent; font-family: var(--sans); letter-spacing: 0; color: var(--ink);
+  }
+  .step:hover { background: var(--panel-2); border-color: var(--line); }
+  .step[aria-pressed="true"] { background: transparent; color: var(--ink); border-color: transparent; }
+  .step[aria-pressed="true"]:hover { background: var(--panel-2); border-color: var(--line); }
+  .step .sw { width: 10px; height: 10px; border-radius: 2px; border: 1.5px solid var(--c); align-self: center; }
+  .step[aria-pressed="true"] .sw { background: var(--c); }
+  .step .t { font-size: 12.5px; line-height: 1.35; }
+  .step .t .eq { font-family: var(--mono); font-size: 10.5px; color: var(--ink-dim); margin-left: 6px; white-space: nowrap; }
+  .step .v { font-family: var(--mono); font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .step[aria-pressed="false"] .t, .step[aria-pressed="false"] .v { color: var(--ink-dim); }
+
+  /* ---- camera card ---- */
+  .camgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+  canvas.frame { display: block; width: 100%; aspect-ratio: 752 / 480; max-width: 100%; border-radius: 2px; background: var(--sensor); }
+  .zoom { display: grid; gap: 4px; min-width: 0; }
+  .zoom canvas { display: block; width: 100%; aspect-ratio: 1; max-width: 100%; border-radius: 2px; background: var(--sensor); image-rendering: pixelated; }
+  .zoom .zl { font-family: var(--mono); font-size: 10.5px; color: var(--ink-dim); display: flex; justify-content: space-between; gap: 6px; }
+  .zoom .zl b { font-weight: 500; }
+
+  /* ---- telemetry ---- */
+  .tele { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-family: var(--mono); font-size: 11.5px; margin: 0; }
+  .tele dt { color: var(--ink-dim); }
+  .tele dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  .tele dd.est { color: var(--est); }
+  .tele dd.ref { color: var(--ref); }
+  .tele .sep { grid-column: 1 / -1; border-top: 1px solid var(--line-soft); margin: 4px 0; }
+
+  canvas.chart { display: block; width: 100%; max-width: 100%; }
+  #traces { height: 210px; }
+  #tilt { flex: 1 1 230px; min-height: 230px; }
+
+  details.dev { font-size: 12px; color: var(--ink-2); }
+  details.dev summary { cursor: pointer; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-dim); }
+
+  .foot { margin-top: 18px; font-size: 12px; color: var(--ink-dim); max-width: 92ch; line-height: 1.5; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <h1>Reflection-based relative localization, live</h1>
+    <span class="spec" id="specline">camera · active markers · 1D rangefinder</span>
+    <span class="spacer"></span>
+    <span class="chip" id="rateChip">10 Hz</span>
+    <a class="chip back" id="backLink" href="./">&larr; Paper page</a>
+  </header>
+  <script>
+    // Inside the project page's pop-up the page already has its own close button.
+    if (window.self !== window.top) document.getElementById("backLink").hidden = true;
+  </script>
+
+  <div class="console">
+    <div class="main">
+      <div class="stage" id="stage">
+        <canvas id="view" aria-label="3D view of the observer, the transmitter, the reflecting surface and both cones"></canvas>
+        <div class="hud">
+          <div class="big"><span id="hudErr">0.00</span> <span class="unit">m error</span></div>
+          <div><span class="lbl">range</span> <span id="hudRange">0.0</span> m · <span class="lbl">est</span> <span id="hudEstRange">0.0</span> m</div>
+          <div><span class="lbl">inliers</span> <span id="hudInl">0/0</span> · <span class="lbl">ESS</span> <span id="hudEss">0</span></div>
+          <div class="lbl hint">drag to orbit · drag the transmitter · wheel to zoom</div>
+        </div>
+        <div class="stamp ok" id="stamp">tracking</div>
+        <div class="legend">
+          <span><i style="background:var(--dir)"></i>direct cone</span>
+          <span><i style="background:var(--ref)"></i>reflection cone</span>
+          <span><i style="background:var(--inl)"></i>inliers</span>
+          <span><i style="background:var(--est)"></i>particles · estimate</span>
+          <span><i class="sq" style="background:var(--ink)"></i>transmitter (truth)</span>
+        </div>
+      </div>
+
+      <div class="instruments">
+        <section class="card" id="camCard">
+          <h2>Onboard camera <span class="note">UV-filtered, fisheye 752×480</span></h2>
+          <canvas class="frame" id="frame" aria-label="Simulated onboard camera image"></canvas>
+          <div class="camgrid">
+            <div class="zoom">
+              <canvas id="zoomD" aria-label="Direct LED window"></canvas>
+              <div class="zl"><b style="color:var(--dir)">direct p<sub>d</sub></b><span id="zlD">–</span></div>
+            </div>
+            <div class="zoom">
+              <canvas id="zoomR" aria-label="Reflection window with ellipse extremes"></canvas>
+              <div class="zl"><b style="color:var(--ref)">reflection p<sub>r</sub></b><span id="zlR">–</span></div>
+            </div>
+          </div>
+          <p class="cap">Pixels above the threshold σ are tinted. The reflection cone takes its half-angles from the farthest
+            such pixels above/below (<b>p<sub>v</sub></b>) and beside (<b>p<sub>h</sub></b>) the centroid, capped at α<sub>r</sub><sup>max</sup>.</p>
+        </section>
+
+        <section class="card" id="pipeCard">
+          <h2>Pipeline <span class="note">click a step to show or hide it</span></h2>
+          <ul class="steps" id="steps"></ul>
+        </section>
+
+        <section class="card" id="traceCard">
+          <h2>Relative position <span class="note"><span style="color:var(--ink)">— truth</span> · <span style="color:var(--est)">— estimate</span></span></h2>
+          <canvas class="chart" id="traces" aria-label="x, y and z of truth and estimate over the last 30 seconds"></canvas>
+          <p class="cap">Last 30 s. Shaded where the frame gave no usable reflection and the filter only predicted.</p>
+        </section>
+
+        <section class="card" id="tiltCard">
+          <h2>Surface tilt vs range <span class="note">noise-free, as Fig. 9</span></h2>
+          <canvas class="chart" id="tilt" aria-label="Localization error against range for several surface tilts"></canvas>
+          <p class="cap" id="tiltCap">Each curve is the method's error for one tilt τ at the current height and lateral offset.</p>
+        </section>
+      </div>
+    </div>
+
+    <div class="rail">
+      <section class="card">
+        <h2>Scenario <span class="note" id="presetNote"></span></h2>
+        <div class="btns" id="presetBtns"></div>
+        <div class="sub-h">Transmitter motion</div>
+        <div class="btns" id="motionBtns"></div>
+        <div class="btns">
+          <button id="runBtn" aria-pressed="true">Pause</button>
+          <button id="stepBtn">Step frame</button>
+          <button id="resetBtn">Reset filter</button>
+          <button id="viewBtn">Reset view</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Geometry</h2>
+        <div class="ctl" id="ctlRange">
+          <div class="row"><span class="name">range x</span><span class="val" id="rangeVal"></span></div>
+          <input type="range" id="range" min="2" max="15" step="0.1" aria-label="Transmitter range">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">lateral y</span><span class="val" id="latVal"></span></div>
+          <input type="range" id="lat" min="-5" max="5" step="0.1" aria-label="Transmitter lateral offset">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">altitude above observer</span><span class="val" id="altVal"></span></div>
+          <input type="range" id="alt" min="-0.8" max="2" step="0.05" aria-label="Transmitter altitude relative to observer">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">observer height h</span><span class="val" id="hVal"></span></div>
+          <input type="range" id="h" min="0.5" max="3" step="0.05" aria-label="Observer height above the surface">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Surface &amp; sensing</h2>
+        <div class="ctl">
+          <div class="row"><span class="name">surface roughness</span><span class="val" id="roughVal"></span></div>
+          <input type="range" id="rough" min="0" max="8" step="0.1" aria-label="Surface slope standard deviation">
+          <div class="hint">Facet slope spread. Calm water and polished floors sit low; wind and downwash spread the reflection.</div>
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">surface tilt τ</span><span class="val" id="tauVal"></span></div>
+          <input type="range" id="tau" min="-15" max="15" step="0.5" aria-label="Surface tilt">
+          <div class="hint" id="tauHint"></div>
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">height measurement bias</span><span class="val" id="hbVal"></span></div>
+          <input type="range" id="hb" min="-15" max="15" step="1" aria-label="Height measurement bias in percent">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">hover attitude, uncompensated</span><span class="val" id="attVal"></span></div>
+          <input type="range" id="att" min="0" max="3.5" step="0.1" aria-label="Standard deviation of uncompensated roll and pitch">
+          <div class="hint">The experiments left roll and pitch below 0.06 rad uncompensated.</div>
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">exposure t<sub>exp</sub></span><span class="val" id="texpVal"></span></div>
+          <input type="range" id="texp" min="1" max="40" step="0.5" aria-label="Exposure time">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Method <span class="note">Tab. I</span></h2>
+        <div class="ctl">
+          <div class="row"><span class="name">reflection-cone samples n</span><span class="val" id="nVal"></span></div>
+          <input type="range" id="n" min="100" max="2000" step="50" aria-label="Samples in the reflection cone">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">particles n<sub>p</sub></span><span class="val" id="npVal"></span></div>
+          <input type="range" id="np" min="200" max="3000" step="100" aria-label="Number of particles">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">α<sub>r</sub><sup>max</sup> reflection cap</span><span class="val" id="arVal"></span></div>
+          <input type="range" id="ar" min="0.5" max="8" step="0.5" aria-label="Maximum reflection cone half-angle">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">α<sub>d</sub><sup>max</sup> = υ<sub>d</sub><sup>max</sup> direct cone</span><span class="val" id="adVal"></span></div>
+          <input type="range" id="ad" min="0.5" max="8" step="0.5" aria-label="Direct cone half-angle">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">x<sub>m</sub> · z<sub>m</sub> extents</span><span class="val" id="xmVal"></span></div>
+          <input type="range" id="xm" min="5" max="60" step="1" aria-label="Maximum range of the direct cone">
+          <input type="range" id="zm" min="1" max="15" step="0.5" aria-label="Maximum height of the reflection cone">
+        </div>
+        <div class="ctl">
+          <div class="row"><span class="name">threshold σ</span><span class="val" id="thrVal"></span></div>
+          <input type="range" id="thr" min="5" max="120" step="1" aria-label="Pixel threshold">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Telemetry</h2>
+        <dl class="tele">
+          <dt>truth x y z</dt><dd id="tTruth">–</dd>
+          <dt>estimate x y z</dt><dd class="est" id="tEst">–</dd>
+          <dt>error x y z</dt><dd id="tErr">–</dd>
+          <dt>MAE x y z since reset</dt><dd id="tMae">–</dd>
+          <div class="sep"></div>
+          <dt>α<sub>r</sub> measured → used</dt><dd class="ref" id="tAlpha">–</dd>
+          <dt>υ<sub>r</sub> measured → used</dt><dd class="ref" id="tUps">–</dd>
+          <dt>Fresnel reflectance</dt><dd id="tFres">–</dd>
+          <dt>frames with a fix</dt><dd id="tFix">–</dd>
+          <dt>pipeline time / frame</dt><dd id="tMs">–</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">
+    Simulation of the method in <i>Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers</i>.
+    The image is synthesised: an equidistant fisheye stands in for the calibrated OCam model, and the reflection is a glitter
+    pattern from Gaussian facet slopes with Fresnel reflectance. Everything after the image follows Sec. II: blob centroids,
+    ellipse extremes, the two elliptical cones, uniform sampling of the reflection cone, the inlier test against the direct cone,
+    and a constant-velocity particle filter with a Cauchy kernel and ESS-triggered resampling. Method parameters default to
+    Tab. I; scene heights and speeds are illustrative.
+  </p>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Reflection-based relative localization — method core
+   Frames: observer body frame, x forward (optical axis, horizontal),
+   y left, z up. Origin at the observer camera.
+   ===================================================================== */
+
+const V = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: (a) => Math.hypot(a[0], a[1], a[2]),
+  unit: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+};
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+
+/* ---------- seeded RNG (repeatable runs) ---------- */
+function makeRng(seed) {
+  let s = seed >>> 0 || 1;
+  const rnd = () => {
+    s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+    return s / 4294967296;
+  };
+  let spare = null;
+  rnd.gauss = () => {
+    if (spare !== null) { const v = spare; spare = null; return v; }
+    let u, v, q;
+    do { u = rnd() * 2 - 1; v = rnd() * 2 - 1; q = u * u + v * v; } while (q >= 1 || q === 0);
+    const m = Math.sqrt(-2 * Math.log(q) / q);
+    spare = v * m; return u * m;
+  };
+  return rnd;
+}
+
+/* ---------- Camera: equidistant fisheye, 752 x 480 (BlueFOX-like) ----------
+   Stands in for the OCamCalib model: world2cam / cam2world are exact inverses,
+   i.e. a perfectly calibrated camera.                                        */
+const CAM = { W: 752, H: 480, cx: 376, cy: 240, f: 240 /* px / rad */ };
+
+function world2cam(v) {
+  const rho = Math.hypot(v[1], v[2]);
+  const th = Math.atan2(rho, v[0]);
+  if (rho < 1e-12) return [CAM.cx, CAM.cy];
+  const r = CAM.f * th;
+  return [CAM.cx - r * v[1] / rho, CAM.cy - r * v[2] / rho];
+}
+function cam2world(u, v) {
+  const dx = u - CAM.cx, dy = v - CAM.cy;
+  const r = Math.hypot(dx, dy);
+  if (r < 1e-12) return [1, 0, 0];
+  const th = r / CAM.f, s = Math.sin(th);
+  return [Math.cos(th), -dx / r * s, -dy / r * s];
+}
+
+/* ---------- Physical scene ----------
+   Surface: plane through (0,0,-h) tilted by tau about y.
+   tau > 0 makes the surface rise toward +x (toward the transmitter).       */
+function surfaceOf(h, tauDeg) {
+  const t = tauDeg * D2R;
+  return {
+    p0: [0, 0, -h],
+    n: [-Math.sin(t), 0, Math.cos(t)],
+    e1: [Math.cos(t), 0, Math.sin(t)],
+    e2: [0, 1, 0],
+  };
+}
+function rayPlane(o, d, S) {
+  const den = V.dot(d, S.n);
+  if (Math.abs(den) < 1e-12) return null;
+  const t = V.dot(V.sub(S.p0, o), S.n) / den;
+  return t > 0 ? V.add(o, V.mul(d, t)) : null;
+}
+function mirrorPoint(p, S) {
+  const k = 2 * V.dot(V.sub(p, S.p0), S.n);
+  return V.sub(p, V.mul(S.n, k));
+}
+/* Express the world (truth + surface) in the frame of an observer camera that
+   is rolled / pitched and NOT compensated (the paper's hover assumption). */
+function rotT(v, roll, pitch) {            // R^T v with R = Ry(pitch) Rx(roll)
+  const cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
+  // R^T = Rx(-roll) Ry(-pitch)
+  const x1 = cp * v[0] - sp * v[2], y1 = v[1], z1 = sp * v[0] + cp * v[2];
+  return [x1, cr * y1 + sr * z1, -sr * y1 + cr * z1];
+}
+function rotFwd(v, roll, pitch) {          // R v
+  const cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
+  const x1 = v[0], y1 = cr * v[1] - sr * v[2], z1 = sr * v[1] + cr * v[2];
+  return [cp * x1 + sp * z1, y1, -sp * x1 + cp * z1];
+}
+function cameraScene(T, S, roll, pitch) {
+  return { T: rotT(T, roll, pitch),
+           S: { p0: rotT(S.p0, roll, pitch), n: rotT(S.n, roll, pitch),
+                e1: rotT(S.e1, roll, pitch), e2: rotT(S.e2, roll, pitch) } };
+}
+
+/* specular point of T seen from the origin, flat surface */
+function specularPoint(T, S) {
+  const Tm = mirrorPoint(T, S);
+  return rayPlane([0, 0, 0], V.unit(Tm), S);
+}
+/* facet slopes (along e1, e2) needed at surface point P to reflect T into O */
+function slopeAt(P, T, S) {
+  const a = V.unit(V.mul(P, -1)), b = V.unit(V.sub(T, P));
+  const H = V.unit(V.add(a, b));
+  const hn = V.dot(H, S.n);
+  return [V.dot(H, S.e1) / hn, V.dot(H, S.e2) / hn];
+}
+/* Fresnel reflectance (Schlick) at incidence angle between view ray and normal */
+function fresnel(P, S, n2) {
+  const r0 = ((n2 - 1) / (n2 + 1)) ** 2;
+  const c = Math.abs(V.dot(V.unit(V.mul(P, -1)), S.n));
+  return r0 + (1 - r0) * Math.pow(1 - c, 5);
+}
+
+/* ---------- Synthetic onboard image (only the windows we need) ----------
+   Glitter model: K facets with slopes ~ N(0, sigma_s); each facet that
+   reflects the LED into the camera is a glint, splatted with the PSF.
+   Pixel value = clip(gain * exposure * irradiance), 8 bit.                  */
+function renderFrame(sc, rng) {
+  const S = sc.S || surfaceOf(sc.h, sc.tau);
+  const T = sc.T;
+  const uvD = world2cam(T);
+  const out = { uvD, glints: [], S, Sp: null, uvS: null, R: 0 };
+  const Eled = sc.led / V.dot(T, T);              // energy at camera, direct path
+  out.Edirect = Eled;
+  const Sp = specularPoint(T, S);
+  if (Sp && V.dot(Sp, [1, 0, 0]) > 0) {
+    out.Sp = Sp;
+    out.uvS = world2cam(Sp);
+    const Tm = mirrorPoint(T, S);
+    const R = fresnel(Sp, S, sc.ior);
+    out.R = R;
+    const Eref = sc.led * R / V.dot(Tm, Tm);
+    // chord-Newton around the specular point in surface coordinates (a, b)
+    const base = Sp, eps = 1e-3 * Math.max(1, V.len(Sp));
+    const s0 = slopeAt(base, T, S);
+    const pa = V.add(base, V.mul(S.e1, eps)), pb = V.add(base, V.mul(S.e2, eps));
+    const sa = slopeAt(pa, T, S), sb = slopeAt(pb, T, S);
+    const J = [[(sa[0] - s0[0]) / eps, (sb[0] - s0[0]) / eps],
+               [(sa[1] - s0[1]) / eps, (sb[1] - s0[1]) / eps]];
+    const det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+    const K = sc.glints;
+    const sig = sc.rough * D2R;
+    if (Math.abs(det) > 1e-12) {
+      const iJ = [[J[1][1] / det, -J[0][1] / det], [-J[1][0] / det, J[0][0] / det]];
+      for (let k = 0; k < K; k++) {
+        const tx = sig * rng.gauss(), ty = sig * rng.gauss();
+        let A = 0, B = 0, ok = true;
+        for (let it = 0; it < 4; it++) {
+          const P = V.add(base, V.add(V.mul(S.e1, A), V.mul(S.e2, B)));
+          if (P[0] <= 0.05) { ok = false; break; }
+          const s = slopeAt(P, T, S);
+          const rx = tx - s[0], ry = ty - s[1];
+          A += iJ[0][0] * rx + iJ[0][1] * ry;
+          B += iJ[1][0] * rx + iJ[1][1] * ry;
+        }
+        if (!ok) continue;
+        const P = V.add(base, V.add(V.mul(S.e1, A), V.mul(S.e2, B)));
+        const s = slopeAt(P, T, S);
+        if (Math.abs(s[0] - tx) + Math.abs(s[1] - ty) > 0.02) continue;   // not converged
+        if (P[0] <= 0.05 || V.dot(V.sub(T, P), S.n) <= 0) continue;
+        const uv = world2cam(P);
+        out.glints.push([uv[0], uv[1], Eref / K, P]);
+      }
+    }
+  }
+  return out;
+}
+
+/* Rasterise a window [x0, y0, w, h] of the frame into a Uint8 buffer */
+function rasterWindow(frame, sc, win, rng) {
+  const [x0, y0, w, h] = win;
+  const buf = new Float32Array(w * h);
+  const psf = sc.psf, rad = Math.ceil(psf * 3), inv2s2 = 1 / (2 * psf * psf);
+  const norm = 1 / (2 * Math.PI * psf * psf);
+  const splat = (u, v, e) => {
+    const iu = Math.round(u), iv = Math.round(v);
+    for (let yy = iv - rad; yy <= iv + rad; yy++) {
+      const ly = yy - y0; if (ly < 0 || ly >= h) continue;
+      for (let xx = iu - rad; xx <= iu + rad; xx++) {
+        const lx = xx - x0; if (lx < 0 || lx >= w) continue;
+        const du = xx - u, dv = yy - v;
+        buf[ly * w + lx] += e * norm * Math.exp(-(du * du + dv * dv) * inv2s2);
+      }
+    }
+  };
+  splat(frame.uvD[0], frame.uvD[1], frame.Edirect);
+  for (const g of frame.glints) splat(g[0], g[1], g[2]);
+  const gain = sc.gain * sc.texp;
+  const img = new Uint8ClampedArray(w * h);
+  for (let i = 0; i < w * h; i++) img[i] = gain * buf[i] + sc.noise * rng.gauss() + sc.dark;
+  return img;
+}
+
+/* ---------- Detection (CCA-free, window based, as in the node) ---------- */
+function centroidAbove(img, win, thr, rowMin) {
+  const [x0, y0, w, h] = win;
+  let sx = 0, sy = 0, n = 0;
+  for (let y = 0; y < h; y++) {
+    if (y0 + y < rowMin) continue;
+    for (let x = 0; x < w; x++) if (img[y * w + x] >= thr) { sx += x0 + x; sy += y0 + y; n++; }
+  }
+  return n ? [sx / n, sy / n, n] : null;
+}
+/* farthest above-threshold pixels from the centroid, vertical & horizontal
+   (mirrors _run_cone_pipeline: P_dist_width / P_dist_height)               */
+function ellipseExtremes(img, win, c, thr, rowMin) {
+  const [x0, y0, w, h] = win;
+  let top = null, bot = null, lft = null, rgt = null;
+  for (let y = 0; y < h; y++) {
+    if (y0 + y < rowMin) continue;
+    for (let x = 0; x < w; x++) {
+      if (img[y * w + x] < thr) continue;
+      const X = x0 + x, Y = y0 + y;
+      if (top === null || Y < top) top = Y;
+      if (bot === null || Y > bot) bot = Y;
+      if (lft === null || X < lft) lft = X;
+      if (rgt === null || X > rgt) rgt = X;
+    }
+  }
+  if (top === null) return null;
+  const pv = [c[0], Math.abs(top - c[1]) > Math.abs(bot - c[1]) ? top : bot];
+  const ph = [Math.abs(lft - c[0]) > Math.abs(rgt - c[0]) ? lft : rgt, c[1]];
+  return { pv, ph, box: [lft, top, rgt, bot] };
+}
+
+function clampWin(cx, cy, hw, hh) {
+  let x0 = Math.round(cx - hw), y0 = Math.round(cy - hh);
+  x0 = Math.max(0, Math.min(CAM.W - 2 * hw, x0));
+  y0 = Math.max(0, Math.min(CAM.H - 2 * hh, y0));
+  return [x0, y0, 2 * hw, 2 * hh];
+}
+
+function detect(frame, sc, rng) {
+  const W = sc.win;
+  const det = { pd: null, pr: null, pv: null, ph: null, winD: null, winR: null, imgR: null, imgD: null };
+  // direct LED
+  const winD = clampWin(frame.uvD[0], frame.uvD[1], 12, 12);
+  const imgD = rasterWindow(frame, sc, winD, rng);
+  det.winD = winD; det.imgD = imgD;
+  const cd = centroidAbove(imgD, winD, sc.thr, -1);
+  if (!cd) return det;
+  det.pd = [cd[0] + sc.pxNoise * rng.gauss(), cd[1] + sc.pxNoise * rng.gauss()];
+  if (!frame.uvS) return det;
+  // reflection: search below the direct LED, then the local window around its centroid
+  const rowMin = det.pd[1] + sc.distRD;
+  const winS = clampWin(frame.uvS[0], frame.uvS[1], W, W);
+  const imgS = rasterWindow(frame, sc, winS, rng);
+  const c0 = centroidAbove(imgS, winS, sc.thr, rowMin);
+  if (!c0) { det.winR = winS; det.imgR = imgS; return det; }
+  const winR = clampWin(c0[0], c0[1], W, W);
+  const imgR = rasterWindow(frame, sc, winR, rng);
+  det.winR = winR; det.imgR = imgR;
+  const c = centroidAbove(imgR, winR, sc.thr, rowMin);
+  if (!c) return det;
+  const ex = ellipseExtremes(imgR, winR, c, sc.thr, rowMin);
+  det.pr = [c[0] + sc.pxNoise * rng.gauss(), c[1] + sc.pxNoise * rng.gauss()];
+  det.npix = c[2];
+  det.pv = ex.pv; det.ph = ex.ph; det.box = ex.box;
+  return det;
+}
+
+/* ---------- Geometry of the method (Eqs. 1–14) ---------- */
+function onSurface(b, h) {                     // Eqs. (5)–(7)
+  const az = Math.abs(b[2]);
+  return [h * b[0] / az, h * b[1] / az, -h];
+}
+
+function buildCones(bd, br, bv, bh, p) {
+  const h = p.hMeas;
+  if (bd[0] <= 0 || br[0] <= 0 || br[2] >= -1e-6) return null;
+  const r = onSurface(br, h);
+  const a = [0, 0, -2 * h];
+  const beta_r = Math.atan(Math.abs(br[2]) / br[0]);                       // Eq. (3)
+  let alpha_r = 0, ups_r = 0;
+  if (bv && bv[0] > 0) alpha_r = Math.abs(Math.atan(Math.abs(bv[2]) / bv[0]) - beta_r);
+  if (bh && bh[2] < -1e-6) {
+    const rh = onSurface(bh, h);
+    const lat = Math.hypot(r[0] - a[0], r[1] - a[1]);
+    ups_r = Math.atan(Math.hypot(rh[0] - r[0], rh[1] - r[1]) / lat);      // Eq. (8)
+  }
+  const alphaMeas = alpha_r, upsMeas = ups_r;
+  alpha_r = Math.min(alpha_r, p.alphaRmax * D2R);
+  ups_r = Math.min(ups_r, p.alphaRmax * D2R);
+  // end point of the reflection cone
+  let pr;
+  if (p.eq9 === "literal") {                                                // Eq. (9) as printed
+    const az = Math.abs(br[2]);
+    pr = [r[0] + p.zm * br[0] / az, r[1] + p.zm * br[1] / az, p.zm];
+  } else {                                                                  // on the line a -> r
+    pr = V.add(a, V.mul(V.sub(r, a), (p.zm + 2 * h) / h));
+  }
+  const dr = V.unit(V.sub(pr, a));                                          // Eq. (11)
+  const zup = [0, 0, 1];
+  const n1 = V.unit(V.sub(zup, V.mul(dr, V.dot(zup, dr))));
+  const n2 = V.cross(dr, n1);
+  const lmin = V.len(V.sub(a, r)), lmax = V.len(V.sub(pr, a));
+  // direct cone, Eqs. (12)–(14)
+  const pd = [p.xm, p.xm * bd[1] / bd[0], p.xm * bd[2] / bd[0]];
+  const dd = V.unit(pd), ld = V.len(pd);
+  return { r, a, pr, dr, n1, n2, lmin, lmax, alpha_r, ups_r, alphaMeas, upsMeas, beta_r,
+           pd, dd, ld, alpha_d: p.alphaD * D2R, ups_d: p.upsD * D2R };
+}
+
+/* Eq. (15) sampling inside the reflection cone + Eqs. (16)–(18) inlier test */
+function sampleCones(C, n, rng) {
+  const samples = [], inliers = [];
+  if (!(C.lmax > C.lmin)) return { samples, inliers };
+  const tA = Math.tan(C.alpha_d), tU = Math.tan(C.ups_d);
+  for (let i = 0; i < n; i++) {
+    const g = rng() * 2 * Math.PI, al = rng() * C.alpha_r, up = rng() * C.ups_r;
+    const l = C.lmin + rng() * (C.lmax - C.lmin);
+    const ta = Math.tan(al) * Math.cos(g) * l, tu = Math.tan(up) * Math.sin(g) * l;
+    const q = [C.a[0] + l * C.dr[0] + ta * C.n1[0] + tu * C.n2[0],
+               C.a[1] + l * C.dr[1] + ta * C.n1[1] + tu * C.n2[1],
+               C.a[2] + l * C.dr[2] + ta * C.n1[2] + tu * C.n2[2]];
+    samples.push(q);
+    const s = V.dot(q, C.dd);
+    if (s < 0 || s > C.ld) continue;                                       // Eq. (18)
+    const py = q[1] - s * C.dd[1], pz = q[2] - s * C.dd[2];
+    const ey = s * tU, ez = s * tA;
+    if ((py * py) / (ey * ey) + (pz * pz) / (ez * ez) <= 1) inliers.push(q); // Eq. (17)
+  }
+  return { samples, inliers };
+}
+
+/* noise-free point estimate: closest point between the direct ray and the
+   reflection-cone axis (used for the theory curves)                        */
+function axisIntersection(bd, br, p) {
+  const C = buildCones(bd, br, null, null, p);
+  if (!C) return null;
+  const d1 = V.unit(bd), d2 = C.dr, o2 = C.a;
+  const w0 = V.mul(o2, -1);                       // o1 - o2, o1 = origin
+  const a = 1, b = V.dot(d1, d2), c = 1, d = V.dot(d1, w0), e = V.dot(d2, w0);
+  const den = a * c - b * b;
+  if (den < 1e-12) return null;
+  const s = (b * e - c * d) / den, t = (a * e - b * d) / den;
+  if (s <= 0 || t <= 0) return null;
+  const P1 = V.mul(d1, s), P2 = V.add(o2, V.mul(d2, t));
+  return V.mul(V.add(P1, P2), 0.5);
+}
+
+/* ---------- Particle filter (constant velocity, Cauchy kernel, ESS) ---------- */
+class ParticleFilter {
+  constructor(np, rng) { this.np = np; this.rng = rng; this.reset(); }
+  reset() { this.P = null; this.w = null; this.est = null; this.ess = 0; this.resampled = 0; }
+  initUniform(box) {
+    const r = this.rng, n = this.np;
+    this.P = new Float64Array(n * 6); this.w = new Float64Array(n).fill(1 / n);
+    for (let i = 0; i < n; i++) {
+      this.P[i * 6] = box[0][0] + r() * (box[0][1] - box[0][0]);
+      this.P[i * 6 + 1] = box[1][0] + r() * (box[1][1] - box[1][0]);
+      this.P[i * 6 + 2] = box[2][0] + r() * (box[2][1] - box[2][0]);
+    }
+  }
+  seed(inliers, box, uniformFrac) {
+    this.initUniform(box);
+    const r = this.rng, n = this.np, k = Math.floor(n * (1 - uniformFrac));
+    for (let i = 0; i < k; i++) {
+      const q = inliers[Math.floor(r() * inliers.length)];
+      this.P[i * 6] = q[0] + 0.1 * r.gauss();
+      this.P[i * 6 + 1] = q[1] + 0.1 * r.gauss();
+      this.P[i * 6 + 2] = q[2] + 0.1 * r.gauss();
+    }
+  }
+  predict(dt, qPos, qVel) {
+    if (!this.P) return;
+    const r = this.rng, P = this.P, n = this.np, s = Math.sqrt(dt / 0.1);
+    for (let i = 0; i < n; i++) {
+      const o = i * 6;
+      P[o + 3] += qVel * s * r.gauss(); P[o + 4] += qVel * s * r.gauss(); P[o + 5] += qVel * s * r.gauss();
+      P[o] += P[o + 3] * dt + qPos * s * r.gauss();
+      P[o + 1] += P[o + 4] * dt + qPos * s * r.gauss();
+      P[o + 2] += P[o + 5] * dt + qPos * s * r.gauss();
+    }
+  }
+  update(inliers, gamma, maxObs) {
+    const n = this.np, P = this.P, w = this.w, r = this.rng;
+    let obs = inliers;
+    if (obs.length > maxObs) {
+      obs = []; for (let k = 0; k < maxObs; k++) obs.push(inliers[Math.floor(r() * inliers.length)]);
+    }
+    const m = obs.length, ig2 = 1 / (gamma * gamma);
+    const ox = new Float64Array(m), oy = new Float64Array(m), oz = new Float64Array(m);
+    for (let j = 0; j < m; j++) { ox[j] = obs[j][0]; oy[j] = obs[j][1]; oz[j] = obs[j][2]; }
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      const x = P[i * 6], y = P[i * 6 + 1], z = P[i * 6 + 2];
+      let L = 0;
+      for (let j = 0; j < m; j++) {
+        const dx = x - ox[j], dy = y - oy[j], dz = z - oz[j];
+        L += 1 / (1 + (dx * dx + dy * dy + dz * dz) * ig2);
+      }
+      w[i] *= L / m + 1e-300;
+      sum += w[i];
+    }
+    let s2 = 0;
+    for (let i = 0; i < n; i++) { w[i] /= sum; s2 += w[i] * w[i]; }
+    this.ess = 1 / s2;
+    this.resampled = 0;
+    if (this.ess < 0.5 * n) { this.resample(); this.resampled = 1; }
+  }
+  resample() {                                   // systematic
+    const n = this.np, P = this.P, w = this.w, r = this.rng;
+    const NP = new Float64Array(n * 6);
+    let c = w[0], j = 0;
+    const u0 = r() / n;
+    for (let i = 0; i < n; i++) {
+      const u = u0 + i / n;
+      while (u > c && j < n - 1) { j++; c += w[j]; }
+      for (let k = 0; k < 6; k++) NP[i * 6 + k] = P[j * 6 + k];
+    }
+    this.P = NP; this.w.fill(1 / n); this.ess = n;
+  }
+  estimate() {
+    const n = this.np, P = this.P, w = this.w;
+    let x = 0, y = 0, z = 0;
+    for (let i = 0; i < n; i++) { x += w[i] * P[i * 6]; y += w[i] * P[i * 6 + 1]; z += w[i] * P[i * 6 + 2]; }
+    this.est = [x, y, z];
+    return this.est;
+  }
+}
+
+/* ---------- One full pipeline step ---------- */
+function pipelineStep(sc, p, pf, rng, dt) {
+  const t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
+  const frame = renderFrame(sc, rng);
+  const det = detect(frame, sc, rng);
+  const res = { frame, det, cones: null, samples: [], inliers: [], status: "" };
+  // paper: particles start uniform over the observable volume
+  if (!pf.P) pf.initUniform(p.initBox); else pf.predict(dt, p.qPos, p.qVel);
+  if (!det.pd) res.status = "no direct LED";
+  else if (!det.pr) res.status = "no reflection above threshold";
+  else {
+    const bd = cam2world(det.pd[0], det.pd[1]);
+    const br = cam2world(det.pr[0], det.pr[1]);
+    const bv = cam2world(det.pv[0], det.pv[1]);
+    const bh = cam2world(det.ph[0], det.ph[1]);
+    res.bd = bd; res.br = br;
+    const C = buildCones(bd, br, bv, bh, p);
+    if (!C) res.status = "degenerate geometry";
+    else {
+      res.cones = C;
+      const { samples, inliers } = sampleCones(C, p.n, rng);
+      res.samples = samples; res.inliers = inliers;
+      if (!inliers.length) res.status = "cones do not intersect";
+      else {
+        res.status = "ok";
+        pf.update(inliers, p.gamma, p.maxObs);
+      }
+    }
+  }
+  if (pf.P) pf.estimate();
+  res.ms = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+  return res;
+}
+
+
+/* =====================================================================
+   Bench UI
+   ===================================================================== */
+const $ = (s) => document.querySelector(s);
+const FRAME = 0.1;            // camera period [s] — the experiments ran at 10 Hz
+/* Sign of the surface tilt slider. With -1, tau < 0 raises the surface toward
+   the transmitter, which is the branch that goes singular at d = h / tan|tau|
+   (the labelling of Fig. 9). Flip to +1 for the opposite convention.        */
+const TILT_SIGN = -1;
+
+/* ---------- theme tokens ---------- */
+const TK = {};
+const TOKENS = ["ground", "panel", "panel-2", "sky-0", "sky-1", "line", "line-soft", "ink", "ink-2", "ink-dim",
+  "grid", "dir", "ref", "inl", "est", "ok", "floor", "water", "sensor", "sensor-ink"];
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of TOKENS) TK[k] = cs.getPropertyValue("--" + k).trim();
+  dirty.all = true;
+}
+function rgba(hex, a) {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function rgbOf(hex) {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/* ---------- scenarios (Tab. I parameters; geometry illustrative) ---------- */
+const PRESETS = {
+  pvc: {
+    label: "Indoor · PVC", note: "Exp. 1–2 parameters", surface: "floor", h: 1.1, rough: 2.0, ior: 1.5,
+    gain: 3e5, texp: 20, center: [7, -1.2, 0.3], motion: "sweep",
+    n: 500, np: 1500, ar: 3, ad: 3, xm: 15, zm: 2.5, thr: 30,
+    lim: { lat: [-5, 5], alt: [-0.8, 2], h: [0.5, 3] },
+  },
+  tiles: {
+    label: "Indoor · tiles", note: "Exp. 3–4 parameters", surface: "floor", h: 1.1, rough: 1.0, ior: 1.6,
+    gain: 3e5, texp: 20, center: [8, 0.8, 0.2], motion: "weave",
+    n: 500, np: 1500, ar: 3, ad: 3, xm: 15, zm: 2.5, thr: 30,
+    lim: { lat: [-5, 5], alt: [-0.8, 2], h: [0.5, 3] },
+  },
+  water: {
+    label: "Outdoor · water", note: "Outdoor 1–3 parameters", surface: "water", h: 5, rough: 3.0, ior: 1.33,
+    gain: 1e8, texp: 2.5, center: [24, -4, 1], motion: "sweep",
+    n: 1000, np: 1000, ar: 4, ad: 3, xm: 40, zm: 10, thr: 40,
+    lim: { lat: [-15, 15], alt: [-3, 6], h: [2, 10] },
+  },
+};
+const MOTIONS = [["hold", "Hold"], ["sweep", "Sweep range"], ["weave", "Weave"]];
+
+const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const S = {
+  preset: "pvc", surface: "floor", h: 1.1, rough: 2, ior: 1.5, gain: 3e5, texp: 20,
+  tau: 0, hb: 0, att: 0.5, center: [7, -1.2, 0.3], motion: "sweep",
+  n: 500, np: 1500, ar: 3, ad: 3, xm: 15, zm: 2.5, thr: 30, eq9: "ray",
+  run: true, t: 0, T: [7, -1.2, 0.3], roll: 0, pitch: 0, lim: PRESETS.pvc.lim,
+  layers: { detect: true, bearing: true, mirror: true, rcone: true, dcone: true, samples: true, pf: true },
+};
+
+let rng = makeRng((Date.now() & 0xffffff) | 1);
+let pf = new ParticleFilter(S.np, rng);
+let last = null;
+let hist = [];
+let liveErr = [];          // recent (range, |e|) pairs for the tilt chart
+let stats = null;
+const dirty = { cam: true, charts: true, all: true };
+function resetStats() { stats = { n: 0, ex: 0, ey: 0, ez: 0, frames: 0, fixes: 0, ms: 0, started: false }; }
+resetStats();
+
+/* ---------- scene / method parameter blocks for the core ---------- */
+function physSurface() { return surfaceOf(S.h, TILT_SIGN * S.tau); }
+function buildSc() {
+  const Sw = physSurface();
+  const cs = cameraScene(S.T, Sw, S.roll, S.pitch);
+  return {
+    h: S.h, T: cs.T, S: cs.S, rough: S.rough, ior: S.ior, led: 1, gain: S.gain, texp: S.texp,
+    psf: 1.0, noise: 2, dark: 4, glints: 600, win: 25, thr: S.thr, distRD: 10, pxNoise: 0.3,
+  };
+}
+function buildP() {
+  return {
+    n: S.n, np: S.np, alphaRmax: S.ar, alphaD: S.ad, upsD: S.ad, xm: S.xm, zm: S.zm,
+    hMeas: S.h * (1 + S.hb / 100), gamma: Math.max(0.3, S.xm / 30), maxObs: 150,
+    qPos: 0.05, qVel: 0.2, eq9: S.eq9 === "eq9" ? "literal" : "collinear",
+    initBox: [[1, S.xm], [-0.4 * S.xm, 0.4 * S.xm], [-S.h, S.zm]],
+  };
+}
+
+/* ---------- transmitter motion ---------- */
+let draggingUav = false;
+function traj(t) {
+  const c = S.center, k = S.xm / 15, TAU = 2 * Math.PI;
+  let p;
+  if (S.motion === "sweep" && !draggingUav) {
+    const lo = 0.2 * S.xm, hi = 0.86 * S.xm;
+    p = [lo + (hi - lo) * (0.5 - 0.5 * Math.cos(TAU * t / 40)),
+         c[1] + 0.8 * k * Math.sin(TAU * t / 27), c[2] + 0.25 * k * Math.sin(TAU * t / 17)];
+  } else if (S.motion === "weave" && !draggingUav) {
+    p = [c[0] + 0.12 * S.xm * Math.sin(TAU * t / 21), c[1] + 0.1 * S.xm * Math.sin(TAU * t / 8.5),
+         c[2] + 0.2 * k * Math.sin(TAU * t / 12)];
+  } else p = c.slice();
+  p[0] = Math.max(1.5, Math.min(S.xm * 0.98, p[0]));
+  p[2] = Math.max(-S.h + 0.25, p[2]);
+  return p;
+}
+
+/* ---------- one camera frame ---------- */
+function tick(dt) {
+  S.t += dt;
+  S.T = traj(S.t);
+  if (dt > 0) {                                   // uncompensated hover attitude (OU process)
+    const sig = S.att * D2R, tc = 1.5, q = sig * Math.sqrt(2 * dt / tc);
+    S.roll += -S.roll / tc * dt + q * rng.gauss();
+    S.pitch += -S.pitch / tc * dt + q * rng.gauss();
+    if (sig === 0) { S.roll = 0; S.pitch = 0; }
+  }
+  const sc = buildSc(), p = buildP();
+  const r = pipelineStep(sc, p, pf, rng, dt);
+  r.sc = sc; r.p = p; r.Tw = S.T.slice(); r.roll = S.roll; r.pitch = S.pitch;
+  last = r;
+  const ok = r.status === "ok";
+  if (dt > 0) {
+    hist.push({ t: S.t, T: S.T.slice(), est: pf.est ? pf.est.slice() : null, ok });
+    while (hist.length && hist[0].t < S.t - 30) hist.shift();
+    stats.frames++; if (ok) stats.fixes++;
+    stats.ms = stats.ms ? 0.9 * stats.ms + 0.1 * r.ms : r.ms;
+    if (ok) stats.started = true;
+    if (stats.started && pf.est) {
+      stats.n++;
+      stats.ex += Math.abs(pf.est[0] - S.T[0]); stats.ey += Math.abs(pf.est[1] - S.T[1]); stats.ez += Math.abs(pf.est[2] - S.T[2]);
+      liveErr.push([Math.hypot(S.T[0], S.T[1]), V.len(V.sub(pf.est, S.T)), S.t]);
+      while (liveErr.length && liveErr[0][2] < S.t - 20) liveErr.shift();
+    }
+  }
+  dirty.cam = true; dirty.charts = true;
+  updateReadouts();
+}
+function refreshIfPaused() { if (!S.run) tick(0); }
+
+/* ---------- formatting ---------- */
+const f1 = (x) => (Number.isFinite(x) ? x.toFixed(1) : "–");
+const f2 = (x) => (Number.isFinite(x) ? x.toFixed(2) : "–");
+const sgn = (x, d = 1) => (Number.isFinite(x) ? (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d) : "–");
+const v3 = (v, d = 1) => (v ? v.map((x) => (x < 0 ? "−" : " ") + Math.abs(x).toFixed(d)).join(" ") : "–");
+
+/* ---------- readouts ---------- */
+const STATUS_TEXT = {
+  "ok": "tracking",
+  "no direct LED": "direct LED not detected",
+  "no reflection above threshold": "no reflection above σ · predicting",
+  "degenerate geometry": "reflection not below horizon · predicting",
+  "cones do not intersect": "cones do not intersect · predicting",
+};
+function updateReadouts() {
+  if (!last) return;
+  const r = last, est = pf.est, T = S.T;
+  const e = est ? V.sub(est, T) : null;
+  $("#hudErr").textContent = e ? V.len(e).toFixed(2) : "–";
+  $("#hudRange").textContent = f1(Math.hypot(T[0], T[1]));
+  $("#hudEstRange").textContent = est ? f1(Math.hypot(est[0], est[1])) : "–";
+  $("#hudInl").textContent = `${r.inliers.length}/${S.n}`;
+  $("#hudEss").textContent = pf.P ? Math.round(pf.ess || S.np) : "–";
+  const st = $("#stamp");
+  st.textContent = STATUS_TEXT[r.status] || r.status;
+  st.className = "stamp " + (r.status === "ok" ? "ok" : "lost");
+
+  $("#tTruth").textContent = v3(T, 2);
+  $("#tEst").textContent = v3(est, 2);
+  $("#tErr").textContent = e ? e.map((x) => sgn(x, 2)).join(" ") : "–";
+  $("#tMae").textContent = stats.n ? [stats.ex, stats.ey, stats.ez].map((x) => (x / stats.n).toFixed(2)).join(" ") : "–";
+  const C = r.cones;
+  $("#tAlpha").textContent = C ? `${(C.alphaMeas * R2D).toFixed(1)}° → ${(C.alpha_r * R2D).toFixed(1)}°` : "–";
+  $("#tUps").textContent = C ? `${(C.upsMeas * R2D).toFixed(1)}° → ${(C.ups_r * R2D).toFixed(1)}°` : "–";
+  $("#tFres").textContent = r.frame.R ? (r.frame.R * 100).toFixed(1) + " %" : "–";
+  $("#tFix").textContent = stats.frames ? `${(100 * stats.fixes / stats.frames).toFixed(0)} % of ${stats.frames}` : "–";
+  $("#tMs").textContent = stats.ms ? stats.ms.toFixed(1) + " ms" : "–";
+  $("#rateChip").textContent = `10 Hz · ${stats.ms ? stats.ms.toFixed(1) : "–"} ms/frame`;
+
+  const d = r.det;
+  $("#zlD").textContent = d.pd ? `${d.pd[0].toFixed(1)}, ${d.pd[1].toFixed(1)}` : "not found";
+  $("#zlR").textContent = d.pr ? `${d.pr[0].toFixed(1)}, ${d.pr[1].toFixed(1)} · ${d.npix} px` : "below σ";
+
+  for (const s of STEPS) { const el = document.getElementById("sv-" + s.key); if (el) el.textContent = s.v(r); }
+}
+
+/* ---------- pipeline steps (also the 3D layer toggles) ---------- */
+const STEPS = [
+  { key: "detect", c: "ref", t: "Detect p<sub>d</sub>, p<sub>r</sub> and the reflection ellipse", eq: "Sec. II",
+    v: (r) => (r.det.pr ? `p_r ${r.det.pr[0].toFixed(0)}, ${r.det.pr[1].toFixed(0)}` : "–") },
+  { key: "bearing", c: "dir", t: "Bearings b̂<sub>d</sub>, b̂<sub>r</sub> and the light paths", eq: "Eqs. 1–2",
+    v: (r) => (r.bd ? `${sgn(Math.asin(r.bd[2]) * R2D)}° / ${sgn(Math.asin(r.br[2]) * R2D)}°` : "–") },
+  { key: "mirror", c: "ref", t: "Point r on the assumed level surface, mirror apex a", eq: "Eqs. 3–5",
+    v: (r) => (r.cones ? `r at ${f1(Math.hypot(r.cones.r[0], r.cones.r[1]))} m` : "–") },
+  { key: "rcone", c: "ref", t: "Reflection cone from a through r", eq: "Eqs. 6–11",
+    v: (r) => (r.cones ? `${(r.cones.alpha_r * R2D).toFixed(1)}° × ${(r.cones.ups_r * R2D).toFixed(1)}°` : "–") },
+  { key: "dcone", c: "dir", t: "Direct cone around b̂<sub>d</sub>", eq: "Eqs. 12–14",
+    v: () => `±${S.ad.toFixed(1)}°` },
+  { key: "samples", c: "inl", t: "Sample the reflection cone, keep direct-cone inliers", eq: "Eqs. 15–18",
+    v: (r) => `${r.inliers.length} / ${S.n}` },
+  { key: "pf", c: "est", t: "Particle filter, Cauchy kernel, ESS resampling", eq: "Sec. II",
+    v: () => (pf.P ? `ESS ${Math.round(pf.ess || S.np)}` : "–") },
+];
+function buildSteps() {
+  const ul = $("#steps");
+  ul.innerHTML = "";
+  for (const s of STEPS) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.className = "step"; b.type = "button";
+    b.style.setProperty("--c", `var(--${s.c})`);
+    b.setAttribute("aria-pressed", String(S.layers[s.key]));
+    b.innerHTML = `<span class="sw"></span><span class="t">${s.t}<span class="eq">${s.eq}</span></span><span class="v" id="sv-${s.key}">–</span>`;
+    b.addEventListener("click", () => {
+      S.layers[s.key] = !S.layers[s.key];
+      b.setAttribute("aria-pressed", String(S.layers[s.key]));
+      dirty.cam = true;
+    });
+    li.appendChild(b); ul.appendChild(li);
+  }
+}
+
+/* =====================================================================
+   3D stage — hand-rolled perspective on a 2D canvas
+   ===================================================================== */
+const view = $("#view"), vctx = view.getContext("2d");
+const cam = { az: 0, el: 0, dist: 0, target: [0, 0, 0] };
+function resetView() {
+  cam.az = Math.PI + 0.62; cam.el = 0.36; cam.dist = 0.72 * S.xm + 3;
+  cam.target = [0.42 * S.center[0], 0.25 * S.center[1], -0.3 * S.h];
+}
+function buildCam(w, h) {
+  const ce = Math.cos(cam.el), se = Math.sin(cam.el);
+  const eye = [cam.target[0] + cam.dist * ce * Math.cos(cam.az), cam.target[1] + cam.dist * ce * Math.sin(cam.az),
+               cam.target[2] + cam.dist * se];
+  const fwd = V.unit(V.sub(cam.target, eye));
+  const right = V.unit([fwd[1], -fwd[0], 0]);
+  const up = V.cross(right, fwd);
+  return { eye, fwd, right, up, cx: w / 2, cy: h / 2, f: Math.max(Math.min(w, h * 1.6), h * 0.9) / (2 * Math.tan(0.5)) };
+}
+function project(p, C) {
+  const rx = p[0] - C.eye[0], ry = p[1] - C.eye[1], rz = p[2] - C.eye[2];
+  const z = rx * C.fwd[0] + ry * C.fwd[1] + rz * C.fwd[2];
+  if (z <= 0.1) return null;
+  const x = rx * C.right[0] + ry * C.right[1] + rz * C.right[2];
+  const y = rx * C.up[0] + ry * C.up[1] + rz * C.up[2];
+  return [C.cx + C.f * x / z, C.cy - C.f * y / z, z];
+}
+function poly(ctx, pts, C, close) {
+  let started = false;
+  ctx.beginPath();
+  for (const p of pts) {
+    const s = project(p, C);
+    if (!s) { started = false; continue; }
+    if (!started) { ctx.moveTo(s[0], s[1]); started = true; } else ctx.lineTo(s[0], s[1]);
+  }
+  if (close) ctx.closePath();
+}
+function seg(ctx, a, b, C, color, width, dash, alpha) {
+  const A = project(a, C), B = project(b, C);
+  if (!A || !B) return;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.globalAlpha = alpha == null ? 1 : alpha;
+  ctx.setLineDash(dash || []);
+  ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+  ctx.restore();
+}
+function label(ctx, p, C, text, color, dx = 7, dy = -6) {
+  const s = project(p, C);
+  if (!s) return;
+  ctx.save();
+  ctx.font = "10.5px " + getMono(); ctx.fillStyle = color;
+  ctx.shadowColor = TK["sky-1"]; ctx.shadowBlur = 3;
+  ctx.fillText(text, s[0] + dx, s[1] + dy);
+  ctx.restore();
+}
+let monoCache = null;
+function getMono() { return monoCache || (monoCache = getComputedStyle(document.documentElement).getPropertyValue("--mono")); }
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x))), m = x / p;
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+}
+
+function quad(ctx, C, c, arm, col, opts = {}) {
+  const tips = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => {
+    let v = [a * arm / Math.SQRT2, b * arm / Math.SQRT2, 0];
+    if (opts.roll || opts.pitch) v = rotFwd(v, opts.roll || 0, opts.pitch || 0);
+    if (opts.mirrorZ) v = [v[0], v[1], -v[2]];
+    return V.add(c, v);
+  });
+  const sc = project(c, C);
+  if (!sc) return;
+  ctx.save();
+  ctx.globalAlpha = opts.alpha == null ? 1 : opts.alpha;
+  ctx.setLineDash(opts.dash || []);
+  ctx.strokeStyle = col; ctx.lineWidth = 1.6;
+  for (let i = 0; i < 2; i++) {
+    const a = project(tips[i], C), b = project(tips[i + 2], C);
+    if (a && b) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+  }
+  ctx.lineWidth = 1.2;
+  for (const t of tips) {
+    const s = project(t, C);
+    if (!s) continue;
+    const rad = Math.max(2.5, 0.42 * arm * C.f / s[2]);
+    ctx.beginPath(); ctx.ellipse(s[0], s[1], rad, rad * 0.45, 0, 0, 2 * Math.PI);
+    if (!opts.dash) { ctx.fillStyle = rgba(TK.panel, 0.7); ctx.fill(); }
+    ctx.stroke();
+  }
+  const bs = Math.max(3, 0.28 * arm * C.f / sc[2]);
+  ctx.fillStyle = col;
+  if (!opts.dash) ctx.fillRect(sc[0] - bs / 2, sc[1] - bs / 2, bs, bs);
+  ctx.restore();
+}
+
+function coneRing(o, d, n1, n2, l, ta, tu, N = 40) {
+  const pts = [];
+  for (let k = 0; k <= N; k++) {
+    const g = (k / N) * 2 * Math.PI;
+    pts.push([o[0] + l * d[0] + l * ta * Math.cos(g) * n1[0] + l * tu * Math.sin(g) * n2[0],
+              o[1] + l * d[1] + l * ta * Math.cos(g) * n1[1] + l * tu * Math.sin(g) * n2[1],
+              o[2] + l * d[2] + l * ta * Math.cos(g) * n1[2] + l * tu * Math.sin(g) * n2[2]]);
+  }
+  return pts;
+}
+function drawCone(ctx, C, o, d, n1, n2, l0, l1, ta, tu, col, lMinSolid) {
+  const rings = 5;
+  ctx.save();
+  ctx.strokeStyle = col;
+  // generators
+  for (let k = 0; k < 8; k++) {
+    const g = (k / 8) * 2 * Math.PI;
+    const at = (l) => [o[0] + l * (d[0] + ta * Math.cos(g) * n1[0] + tu * Math.sin(g) * n2[0]),
+                       o[1] + l * (d[1] + ta * Math.cos(g) * n1[1] + tu * Math.sin(g) * n2[1]),
+                       o[2] + l * (d[2] + ta * Math.cos(g) * n1[2] + tu * Math.sin(g) * n2[2])];
+    if (lMinSolid > 0 && S.layers.mirror) {
+      ctx.globalAlpha = 0.28; ctx.setLineDash([3, 4]); ctx.lineWidth = 0.9;
+      poly(ctx, [at(0), at(lMinSolid)], C); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.55; ctx.setLineDash([]); ctx.lineWidth = 0.9;
+    poly(ctx, [at(Math.max(l0, lMinSolid)), at(l1)], C); ctx.stroke();
+  }
+  // rings
+  const ls = Math.max(l0, lMinSolid);
+  for (let i = 0; i <= rings; i++) {
+    const l = ls + (l1 - ls) * (i / rings);
+    ctx.globalAlpha = i === rings ? 0.9 : 0.45; ctx.lineWidth = i === rings ? 1.3 : 0.9;
+    poly(ctx, coneRing(o, d, n1, n2, l, ta, tu), C); ctx.stroke();
+  }
+  // end cap fill
+  ctx.globalAlpha = 0.1; ctx.fillStyle = col;
+  poly(ctx, coneRing(o, d, n1, n2, l1, ta, tu), C, true); ctx.fill();
+  // axis
+  ctx.globalAlpha = 0.6; ctx.setLineDash([6, 5]); ctx.lineWidth = 0.8;
+  poly(ctx, [V.add(o, V.mul(d, ls)), V.add(o, V.mul(d, l1))], C); ctx.stroke();
+  ctx.restore();
+}
+
+function dots(ctx, pts, C, col, size, alpha) {
+  ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = alpha;
+  for (const p of pts) {
+    const s = project(p, C);
+    if (!s) continue;
+    const r = size;
+    ctx.fillRect(s[0] - r / 2, s[1] - r / 2, r, r);
+  }
+  ctx.restore();
+}
+
+function drawScene() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = view.clientWidth, h = view.clientHeight;
+  if (!w || !h) return;
+  if (view.width !== Math.round(w * dpr) || view.height !== Math.round(h * dpr)) {
+    view.width = Math.round(w * dpr); view.height = Math.round(h * dpr);
+  }
+  const ctx = vctx;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, TK["sky-0"]); g.addColorStop(1, TK["sky-1"]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+  if (!draggingUav && !orbiting) {
+    const tgt = [0.42 * S.T[0], 0.25 * S.T[1], -0.3 * S.h];
+    for (let i = 0; i < 3; i++) cam.target[i] += (tgt[i] - cam.target[i]) * 0.02;
+  }
+  const C = buildCam(w, h);
+  const Sw = physSurface();
+  const xm = S.xm, arm = Math.max(0.22, 0.013 * xm);
+  const hM = S.h * (1 + S.hb / 100);
+
+  /* surface */
+  const u0 = -0.15 * xm, u1 = 1.1 * xm, w0 = -0.42 * xm, w1 = 0.42 * xm;
+  const at = (u, v) => V.add(Sw.p0, V.add(V.mul(Sw.e1, u), V.mul(Sw.e2, v)));
+  ctx.save();
+  ctx.fillStyle = S.surface === "water" ? TK.water : TK.floor;
+  ctx.globalAlpha = 0.6;
+  poly(ctx, [at(u0, w0), at(u1, w0), at(u1, w1), at(u0, w1)], C, true); ctx.fill();
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = TK.grid; ctx.lineWidth = 0.6;
+  const gs = niceStep(xm / 12);
+  for (let u = Math.ceil(u0 / gs) * gs; u <= u1; u += gs) { poly(ctx, [at(u, w0), at(u, w1)], C); ctx.stroke(); }
+  for (let v = Math.ceil(w0 / gs) * gs; v <= w1; v += gs) { poly(ctx, [at(u0, v), at(u1, v)], C); ctx.stroke(); }
+  ctx.restore();
+
+  // assumed level surface (dashed) when the real one differs
+  if (S.layers.mirror && (Math.abs(S.tau) > 0.01 || Math.abs(S.hb) > 0.01)) {
+    ctx.save(); ctx.strokeStyle = TK["ink-2"]; ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+    poly(ctx, [[u0, w0, -hM], [u1, w0, -hM], [u1, w1, -hM], [u0, w1, -hM]], C, true); ctx.stroke();
+    ctx.restore();
+    label(ctx, [u1, w1, -hM], C, "assumed level surface", TK["ink-2"], 4, 12);
+  }
+
+  // observer height line
+  seg(ctx, [0, 0, 0], [0, 0, -S.h], C, TK["ink-dim"], 1, [2, 3], 0.9);
+  label(ctx, [0, 0, -S.h / 2], C, `h ${S.h.toFixed(1)} m`, TK["ink-dim"], 6, 3);
+
+  const r = last;
+  const T = S.T;
+  const Sp = specularPoint(T, Sw);
+  const Tm = mirrorPoint(T, Sw);
+
+  /* mirror-side geometry */
+  if (S.layers.mirror) {
+    const a = [0, 0, -2 * hM];
+    quad(ctx, C, a, arm, TK.ref, { dash: [3, 3], alpha: 0.65, mirrorZ: true, roll: S.roll, pitch: S.pitch });
+    label(ctx, a, C, "a  mirror apex", TK.ref, 8, 4);
+    seg(ctx, [0, 0, 0], a, C, TK.ref, 0.8, [2, 4], 0.4);
+    quad(ctx, C, Tm, arm, TK["ink-dim"], { dash: [3, 3], alpha: 0.6, mirrorZ: true });
+    label(ctx, Tm, C, "mirror image", TK["ink-dim"], 8, 4);
+  }
+
+  /* light paths (physical) */
+  if (S.layers.bearing) {
+    seg(ctx, T, [0, 0, 0], C, TK.dir, 1.4, [], 0.9);
+    if (Sp && Sp[0] > 0) {
+      seg(ctx, T, Sp, C, TK.ref, 1.4, [], 0.9);
+      seg(ctx, Sp, [0, 0, 0], C, TK.ref, 1.4, [], 0.9);
+      if (S.layers.mirror) seg(ctx, Sp, Tm, C, TK.ref, 1, [3, 4], 0.45);
+      const sp = project(Sp, C);
+      if (sp) { ctx.fillStyle = TK.ref; ctx.beginPath(); ctx.arc(sp[0], sp[1], 3, 0, 2 * Math.PI); ctx.fill(); }
+    }
+  }
+
+  /* method geometry (believed frame) */
+  const Cn = r && r.cones;
+  if (Cn) {
+    if (S.layers.mirror) {
+      const rp = project(Cn.r, C);
+      if (rp) {
+        ctx.save(); ctx.strokeStyle = TK.ref; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(rp[0], rp[1], 5, 0, 2 * Math.PI); ctx.stroke(); ctx.restore();
+        label(ctx, Cn.r, C, "r", TK.ref, 8, 12);
+      }
+    }
+    if (S.layers.rcone) {
+      drawCone(ctx, C, Cn.a, Cn.dr, Cn.n1, Cn.n2, 0, Cn.lmax, Math.tan(Cn.alpha_r), Math.tan(Cn.ups_r), TK.ref, Cn.lmin);
+    }
+    if (S.layers.dcone) {
+      const d = Cn.dd, zup = [0, 0, 1];
+      const n3 = V.unit(V.sub(zup, V.mul(d, V.dot(zup, d)))), n4 = V.cross(d, n3);
+      drawCone(ctx, C, [0, 0, 0], d, n3, n4, 0, Cn.ld, Math.tan(Cn.alpha_d), Math.tan(Cn.ups_d), TK.dir, 0);
+    }
+  }
+  if (r && S.layers.samples) {
+    dots(ctx, r.samples, C, TK["ink-dim"], 2, 0.45);
+    dots(ctx, r.inliers, C, TK.inl, 3.2, 0.95);
+  }
+
+  /* particles + estimate */
+  if (S.layers.pf && pf.P) {
+    ctx.save(); ctx.fillStyle = TK.est;
+    const P = pf.P, n = pf.np, wmax = Math.max(...pf.w);
+    for (let i = 0; i < n; i++) {
+      const s = project([P[i * 6], P[i * 6 + 1], P[i * 6 + 2]], C);
+      if (!s) continue;
+      ctx.globalAlpha = 0.15 + 0.5 * (pf.w[i] / wmax);
+      ctx.fillRect(s[0] - 1, s[1] - 1, 2, 2);
+    }
+    ctx.restore();
+  }
+
+  /* trails */
+  if (hist.length > 1) {
+    ctx.save(); ctx.lineWidth = 1.2; ctx.globalAlpha = 0.35; ctx.strokeStyle = TK.ink;
+    poly(ctx, hist.slice(-120).map((h) => h.T), C); ctx.stroke();
+    if (S.layers.pf) {
+      ctx.globalAlpha = 0.7; ctx.strokeStyle = TK.est;
+      poly(ctx, hist.slice(-120).filter((h) => h.est).map((h) => h.est), C); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* observer */
+  quad(ctx, C, [0, 0, 0], arm, TK.ink, { roll: S.roll, pitch: S.pitch });
+  label(ctx, [0, 0, 0], C, "observer", TK["ink-2"], -54, -10);
+
+  /* transmitter with its LED glow */
+  const tp = project(T, C);
+  if (tp) {
+    const gr = ctx.createRadialGradient(tp[0], tp[1], 0, tp[0], tp[1], 16);
+    gr.addColorStop(0, rgba(TK.dir, 0.55)); gr.addColorStop(1, rgba(TK.dir, 0));
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(tp[0], tp[1], 16, 0, 2 * Math.PI); ctx.fill();
+  }
+  quad(ctx, C, T, arm, TK.ink);
+  label(ctx, T, C, "transmitter", TK.ink, 10, -10);
+
+  /* estimate */
+  if (pf.est) {
+    const e = pf.est, ep = project(e, C);
+    if (ep) {
+      seg(ctx, e, T, C, TK["ink-2"], 1, [2, 3], 0.8);
+      ctx.save(); ctx.strokeStyle = TK.est; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ep[0], ep[1], 7, 0, 2 * Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ep[0] - 11, ep[1]); ctx.lineTo(ep[0] + 11, ep[1]);
+      ctx.moveTo(ep[0], ep[1] - 11); ctx.lineTo(ep[0], ep[1] + 11); ctx.stroke();
+      ctx.restore();
+      label(ctx, e, C, "estimate", TK.est, 12, 14);
+    }
+  }
+  uavScreen = tp;
+}
+
+/* ---------- 3D interaction ---------- */
+let uavScreen = null, orbiting = false, lastPtr = null;
+function rayFromScreen(mx, my) {
+  const C = buildCam(view.clientWidth, view.clientHeight);
+  const d = V.unit(V.add(C.fwd, V.add(V.mul(C.right, (mx - C.cx) / C.f), V.mul(C.up, (C.cy - my) / C.f))));
+  return { o: C.eye, d };
+}
+function ptr(e) { const b = view.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
+view.addEventListener("pointerdown", (e) => {
+  const [mx, my] = ptr(e);
+  view.setPointerCapture(e.pointerId);
+  if (uavScreen && Math.hypot(mx - uavScreen[0], my - uavScreen[1]) < 22) {
+    draggingUav = true;
+    if (S.motion !== "hold") { S.center = S.T.slice(); setMotion("hold"); }
+  } else { orbiting = true; view.classList.add("dragging"); }
+  lastPtr = [mx, my];
+});
+view.addEventListener("pointermove", (e) => {
+  const [mx, my] = ptr(e);
+  if (!draggingUav && !orbiting) {
+    const near = uavScreen && Math.hypot(mx - uavScreen[0], my - uavScreen[1]) < 22;
+    view.classList.toggle("grab-uav", !!near);
+    return;
+  }
+  if (orbiting) {
+    cam.az -= (mx - lastPtr[0]) * 0.008;
+    cam.el = Math.max(-0.05, Math.min(1.45, cam.el + (my - lastPtr[1]) * 0.006));
+  } else {
+    const { o, d } = rayFromScreen(mx, my);
+    const z = S.center[2];
+    if (Math.abs(d[2]) > 1e-4) {
+      const t = (z - o[2]) / d[2];
+      if (t > 0) {
+        const p = V.add(o, V.mul(d, t));
+        S.center[0] = Math.max(1.5, Math.min(S.xm * 0.98, p[0]));
+        S.center[1] = Math.max(S.lim.lat[0], Math.min(S.lim.lat[1], p[1]));
+        syncSliders();
+        refreshIfPaused();
+      }
+    }
+  }
+  lastPtr = [mx, my];
+});
+function endPtr() { draggingUav = false; orbiting = false; view.classList.remove("dragging"); }
+view.addEventListener("pointerup", endPtr);
+view.addEventListener("pointercancel", endPtr);
+view.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  cam.dist = Math.max(2, Math.min(4 * S.xm + 20, cam.dist * Math.exp(e.deltaY * 0.0012)));
+}, { passive: false });
+view.addEventListener("dblclick", resetView);
+
+/* =====================================================================
+   Onboard camera card
+   ===================================================================== */
+const sensor = document.createElement("canvas");
+sensor.width = CAM.W; sensor.height = CAM.H;
+const sctx = sensor.getContext("2d");
+function grayToImage(img, w, h, thr, tintHex, showTint) {
+  const id = new ImageData(w, h);
+  const base = rgbOf(TK.sensor), tint = rgbOf(tintHex);
+  for (let i = 0; i < w * h; i++) {
+    const v = img[i] / 255, g = Math.pow(v, 0.6);
+    let rr = base[0] + (255 - base[0]) * g, gg = base[1] + (255 - base[1]) * g, bb = base[2] + (255 - base[2]) * g;
+    if (showTint && img[i] >= thr) { rr = 0.45 * rr + 0.55 * tint[0]; gg = 0.45 * gg + 0.55 * tint[1]; bb = 0.45 * bb + 0.55 * tint[2]; }
+    id.data[i * 4] = rr; id.data[i * 4 + 1] = gg; id.data[i * 4 + 2] = bb; id.data[i * 4 + 3] = 255;
+  }
+  return id;
+}
+function fitCanvas(cv) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [ctx, w, h];
+}
+function drawCamera() {
+  if (!last) return;
+  const d = last.det;
+  sctx.fillStyle = TK.sensor; sctx.fillRect(0, 0, CAM.W, CAM.H);
+  if (d.imgD) sctx.putImageData(grayToImage(d.imgD, d.winD[2], d.winD[3], S.thr, TK.dir, false), d.winD[0], d.winD[1]);
+  if (d.imgR) sctx.putImageData(grayToImage(d.imgR, d.winR[2], d.winR[3], S.thr, TK.ref, false), d.winR[0], d.winR[1]);
+
+  const cv = $("#frame");
+  const [ctx, w, h] = fitCanvas(cv);
+  const k = w / CAM.W;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(sensor, 0, 0, w, h);
+  ctx.save();
+  ctx.font = "10px " + getMono();
+  // fisheye boundary & horizon
+  ctx.strokeStyle = TK["sensor-ink"]; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(CAM.cx * k, CAM.cy * k, CAM.f * Math.PI / 2 * k, 0, 2 * Math.PI); ctx.stroke();
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath(); ctx.moveTo(0, CAM.cy * k); ctx.lineTo(w, CAM.cy * k); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha = 0.75; ctx.fillStyle = TK["sensor-ink"];
+  ctx.fillText("horizon", 6, CAM.cy * k - 5);
+  ctx.globalAlpha = 1;
+  if (S.layers.detect) {
+    if (d.pd) {
+      ctx.strokeStyle = TK.dir; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(d.pd[0] * k, d.pd[1] * k, 7, 0, 2 * Math.PI); ctx.stroke();
+      ctx.fillStyle = TK.dir; ctx.fillText("p_d", d.pd[0] * k + 10, d.pd[1] * k - 6);
+    }
+    if (d.pr) {
+      const rx = Math.max(3, Math.abs(d.ph[0] - d.pr[0]) * k), ry = Math.max(3, Math.abs(d.pv[1] - d.pr[1]) * k);
+      ctx.strokeStyle = TK.ref; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(d.pr[0] * k, d.pr[1] * k, rx + 2, ry + 2, 0, 0, 2 * Math.PI); ctx.stroke();
+      ctx.fillStyle = TK.ref; ctx.fillText("p_r", d.pr[0] * k + rx + 6, d.pr[1] * k + 4);
+    }
+    if (d.winR) {
+      ctx.strokeStyle = TK.ref; ctx.globalAlpha = 0.5; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.strokeRect(d.winR[0] * k, d.winR[1] * k, d.winR[2] * k, d.winR[3] * k);
+    }
+  }
+  ctx.restore();
+
+  drawZoom($("#zoomD"), d.imgD, d.winD, TK.dir, d, "D");
+  drawZoom($("#zoomR"), d.imgR, d.winR, TK.ref, d, "R");
+}
+const zoomCv = document.createElement("canvas");
+function drawZoom(cv, img, win, tint, d, which) {
+  const [ctx, w, h] = fitCanvas(cv);
+  ctx.fillStyle = TK.sensor; ctx.fillRect(0, 0, w, h);
+  if (!img || !win) {
+    ctx.fillStyle = TK["sensor-ink"]; ctx.font = "11px " + getMono(); ctx.textAlign = "center";
+    ctx.fillText("nothing above σ", w / 2, h / 2); ctx.textAlign = "left";
+    return;
+  }
+  zoomCv.width = win[2]; zoomCv.height = win[3];
+  zoomCv.getContext("2d").putImageData(grayToImage(img, win[2], win[3], S.thr, tint, S.layers.detect), 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(zoomCv, 0, 0, w, h);
+  const kx = w / win[2], ky = h / win[3];
+  const P = (p) => [(p[0] - win[0] + 0.5) * kx, (p[1] - win[1] + 0.5) * ky];
+  if (!S.layers.detect) return;
+  ctx.save();
+  ctx.lineWidth = 1.5; ctx.font = "10px " + getMono();
+  if (which === "D" && d.pd) {
+    const p = P(d.pd);
+    ctx.strokeStyle = TK.dir; cross(ctx, p, 9);
+  }
+  if (which === "R" && d.pr) {
+    const p = P(d.pr), pv = P(d.pv), ph = P(d.ph);
+    // excluded rows above the direct LED
+    const cut = (d.pd[1] + 10 - win[1]) * ky;
+    if (cut > 0 && cut < h) {
+      ctx.fillStyle = rgba(TK.sensor, 0.6); ctx.fillRect(0, 0, w, cut);
+      ctx.strokeStyle = TK["sensor-ink"]; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, cut); ctx.lineTo(w, cut); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.strokeStyle = "#ffffff"; ctx.globalAlpha = 0.85; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(pv[0], pv[1]); ctx.moveTo(p[0], p[1]); ctx.lineTo(ph[0], ph[1]); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.fillStyle = "#ffffff";
+    ctx.fillRect(pv[0] - 3, pv[1] - 3, 6, 6); ctx.fillRect(ph[0] - 3, ph[1] - 3, 6, 6);
+    ctx.fillText("p_v", pv[0] + 6, pv[1] + (pv[1] > p[1] ? 10 : -4));
+    ctx.fillText("p_h", ph[0] + (ph[0] > p[0] ? 6 : -26), ph[1] - 6);
+    ctx.strokeStyle = TK.ref; ctx.lineWidth = 2; cross(ctx, p, 9);
+  }
+  ctx.restore();
+}
+function cross(ctx, p, s) {
+  ctx.beginPath(); ctx.moveTo(p[0] - s, p[1]); ctx.lineTo(p[0] + s, p[1]); ctx.moveTo(p[0], p[1] - s); ctx.lineTo(p[0], p[1] + s); ctx.stroke();
+}
+
+/* =====================================================================
+   Charts
+   ===================================================================== */
+function niceTicks(lo, hi, n) {
+  const st = niceStep((hi - lo) / n);
+  const out = [];
+  for (let v = Math.ceil(lo / st) * st; v <= hi + 1e-9; v += st) out.push(+v.toFixed(6));
+  return out;
+}
+function drawTraces() {
+  const cv = $("#traces");
+  const [ctx, w, h] = fitCanvas(cv);
+  ctx.clearRect(0, 0, w, h);
+  const L = 34, R = 8, top = 4, bottom = 18, gap = 10;
+  const rowH = (h - top - bottom - 2 * gap) / 3;
+  const t1 = S.t, t0 = t1 - 30;
+  const X = (t) => L + (w - L - R) * (t - t0) / 30;
+  ctx.font = "10px " + getMono();
+  for (let ax = 0; ax < 3; ax++) {
+    const y0 = top + ax * (rowH + gap);
+    let lo = Infinity, hi = -Infinity;
+    for (const p of hist) {
+      lo = Math.min(lo, p.T[ax]); hi = Math.max(hi, p.T[ax]);
+      if (p.est) { lo = Math.min(lo, p.est[ax]); hi = Math.max(hi, p.est[ax]); }
+    }
+    if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
+    const minSpan = ax === 0 ? 2 : 1;
+    if (hi - lo < minSpan) { const m = (hi + lo) / 2; lo = m - minSpan / 2; hi = m + minSpan / 2; }
+    const pad = 0.08 * (hi - lo); lo -= pad; hi += pad;
+    const Y = (v) => y0 + rowH - rowH * (v - lo) / (hi - lo);
+    // no-fix bands
+    ctx.fillStyle = rgba(TK.ref, 0.1);
+    for (let i = 0; i < hist.length; i++) if (!hist[i].ok) ctx.fillRect(X(hist[i].t) - (w - L - R) / 600, y0, (w - L - R) / 300 + 0.5, rowH);
+    // grid
+    ctx.strokeStyle = TK["line-soft"]; ctx.lineWidth = 1; ctx.fillStyle = TK["ink-dim"];
+    ctx.textAlign = "right";
+    for (const v of niceTicks(lo, hi, 2)) {
+      const y = Y(v);
+      ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(w - R, y); ctx.stroke();
+      ctx.fillText(Math.abs(v) < 1e-9 ? "0" : String(+v.toFixed(1)).replace("-", "−"), L - 5, y + 3);
+    }
+    ctx.textAlign = "left";
+    ctx.fillStyle = TK["ink-2"]; ctx.fillText(["x", "y", "z"][ax] + " [m]", L + 4, y0 + 10);
+    // truth
+    ctx.lineWidth = 1.6; ctx.strokeStyle = TK.ink; ctx.beginPath();
+    hist.forEach((p, i) => { const x = X(p.t), y = Y(p.T[ax]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.stroke();
+    // estimate
+    ctx.strokeStyle = TK.est; ctx.lineWidth = 1.6; ctx.beginPath();
+    let st = false;
+    for (const p of hist) {
+      if (!p.est) { st = false; continue; }
+      const x = X(p.t), y = Y(p.est[ax]);
+      if (!st) { ctx.moveTo(x, y); st = true; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.fillStyle = TK["ink-dim"]; ctx.textAlign = "left";
+  ctx.fillText("−30 s", L, h - 4); ctx.textAlign = "right"; ctx.fillText("now", w - R, h - 4); ctx.textAlign = "left";
+}
+
+const TILTS = [15, 10, 5, -5, -10, -15];
+function theoryCurve(tauUser, ds, lat, alt) {
+  const Sw = surfaceOf(S.h, TILT_SIGN * tauUser), p = buildP();
+  return ds.map((d) => {
+    const T = [d, lat, alt];
+    const sp = specularPoint(T, Sw);
+    if (!sp || sp[0] <= 0) return null;
+    const e = axisIntersection(V.unit(T), V.unit(sp), p);
+    return e ? V.len(V.sub(e, T)) : null;
+  });
+}
+function drawTilt() {
+  const cv = $("#tilt");
+  const [ctx, w, h] = fitCanvas(cv);
+  ctx.clearRect(0, 0, w, h);
+  const L = 34, R = 34, top = 18, bottom = 32;
+  const x0 = Math.max(1, 0.1 * S.xm), x1 = S.xm, ymax = Math.max(5, Math.round(S.xm * 0.6 / 5) * 5);
+  const X = (d) => L + (w - L - R) * (d - x0) / (x1 - x0);
+  const Y = (e) => top + (h - top - bottom) * (1 - e / ymax);
+  ctx.font = "10px " + getMono();
+  ctx.strokeStyle = TK["line-soft"]; ctx.fillStyle = TK["ink-dim"]; ctx.lineWidth = 1;
+  ctx.textAlign = "right";
+  for (const v of niceTicks(0, ymax, 3)) {
+    ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(w - R, Y(v)); ctx.stroke();
+    ctx.fillText(String(v), L - 5, Y(v) + 3);
+  }
+  ctx.textAlign = "center";
+  for (const v of niceTicks(x0, x1, 5)) ctx.fillText(String(v), X(v), h - bottom + 14);
+  ctx.textAlign = "left";
+  ctx.fillText("error [m]", 2, 9);
+  ctx.textAlign = "right"; ctx.fillText("range [m]", w - R, h - 3); ctx.textAlign = "left";
+
+  const lat = S.T[1], alt = S.T[2];
+  const ds = []; for (let i = 0; i <= 90; i++) ds.push(x0 + (x1 - x0) * i / 90);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(L, top, w - L - R, h - top - bottom); ctx.clip();
+  const drawCurve = (vals, col, lw, alpha) => {
+    ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.globalAlpha = alpha; ctx.beginPath();
+    let st = false, lastIn = null, exitX = null;
+    vals.forEach((e, i) => {
+      if (e == null || e > ymax * 3) { st = false; if (exitX === null && lastIn) exitX = lastIn[0]; return; }
+      const x = X(ds[i]), y = Y(e);
+      if (!st) { ctx.moveTo(x, y); st = true; } else ctx.lineTo(x, y);
+      if (e <= ymax) lastIn = [x, y];
+      else if (exitX === null && lastIn) exitX = x;
+    });
+    ctx.stroke(); ctx.globalAlpha = 1;
+    if (!lastIn) return null;
+    return exitX !== null ? [exitX, top, true] : [lastIn[0], lastIn[1], false];
+  };
+  const labels = [];
+  for (const tu of TILTS) {
+    const vals = theoryCurve(tu, ds, lat, alt);
+    const lp = drawCurve(vals, TK["ink-dim"], 1, 0.75);
+    if (lp) labels.push([tu, lp]);
+  }
+  let cur = null;
+  if (Math.abs(S.tau) > 0.01 || Math.abs(S.hb) > 0.01 || S.eq9 === "eq9") {
+    cur = drawCurve(theoryCurve(S.tau, ds, lat, alt), TK.ink, 2.2, 1);
+  }
+  // singular range of the current tilt
+  if (TILT_SIGN * S.tau > 0.01) {
+    const dsg = S.h / Math.tan(Math.abs(S.tau) * D2R);
+    if (dsg < x1) {
+      ctx.strokeStyle = TK.ref; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(X(dsg), top); ctx.lineTo(X(dsg), h - bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = TK.ref; ctx.fillText("h/tan|τ|", Math.min(X(dsg) + 4, w - R - 50), h - bottom - 6);
+    }
+  }
+  // live error at current range
+  for (const [d, e] of liveErr) {
+    if (d < x0 || d > x1) continue;
+    ctx.fillStyle = TK.est; ctx.globalAlpha = 0.25;
+    ctx.fillRect(X(d) - 1.5, Y(Math.min(e, ymax)) - 1.5, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+  if (pf.est) {
+    const d = Math.hypot(S.T[0], S.T[1]), e = V.len(V.sub(pf.est, S.T));
+    ctx.strokeStyle = TK["ink-dim"]; ctx.setLineDash([2, 3]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(X(d), top); ctx.lineTo(X(d), h - bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = TK.est; ctx.beginPath(); ctx.arc(X(d), Y(Math.min(e, ymax)), 4.5, 0, 2 * Math.PI); ctx.fill();
+  }
+  ctx.restore();
+  // curve labels (right margin)
+  ctx.font = "10px " + getMono(); ctx.fillStyle = TK["ink-dim"];
+  const used = [];
+  for (const [tu, lp] of labels) {
+    let x, y;
+    if (lp[2]) { x = Math.min(lp[0] - 8, w - R - 26); y = top - 5; }
+    else { x = w - R + 3; y = Math.max(top + 4, Math.min(h - bottom, lp[1] + 3)); }
+    while (used.some((u) => Math.abs(u[0] - x) < 26 && Math.abs(u[1] - y) < 10)) y += 10;
+    used.push([x, y]);
+    ctx.fillText((tu > 0 ? "+" : "−") + Math.abs(tu) + "°", x, y);
+  }
+  const cap = $("#tiltCap");
+  const dsgTxt = TILT_SIGN * S.tau > 0.01
+    ? ` At τ = ${sgn(S.tau)}° the estimate diverges near ${f1(S.h / Math.tan(Math.abs(S.tau) * D2R))} m.` : "";
+  cap.textContent = `Grey: τ = ±5, ±10, ±15° at h = ${S.h.toFixed(1)} m. Bold: current setting. Dots: live filter error.${dsgTxt}`;
+}
+
+/* =====================================================================
+   Controls
+   ===================================================================== */
+const SL = {};
+function bindSlider(id, get, set, fmt) {
+  const el = $("#" + id);
+  SL[id] = { el, get, fmt };
+  el.addEventListener("input", () => { set(+el.value); syncSliders(); onParam(id); });
+}
+function syncSliders() {
+  for (const id in SL) {
+    const s = SL[id];
+    if (document.activeElement !== s.el) s.el.value = s.get();
+    const ve = $("#" + id + "Val");
+    if (ve) ve.textContent = s.fmt(s.get());
+  }
+  $("#xmVal").textContent = `${S.xm.toFixed(0)} m · ${S.zm.toFixed(1)} m`;
+  $("#adVal").textContent = `${S.ad.toFixed(1)}°`;
+  const tauDesc = Math.abs(S.tau) < 0.01 ? "level surface"
+    : (TILT_SIGN * S.tau > 0 ? "surface rises toward the transmitter" : "surface falls away from the transmitter");
+  $("#tauHint").textContent = `${tauDesc}. Negative τ raises the surface toward the transmitter.`;
+  $("#tauVal").classList.toggle("hot", Math.abs(S.tau) > 0.01);
+  $("#hbVal").classList.toggle("hot", Math.abs(S.hb) > 0.01);
+  $("#ctlRange").classList.toggle("off", S.motion === "sweep");
+  $("#range").disabled = S.motion === "sweep";
+  $("#specline").textContent = `camera · active markers · 1D rangefinder · n = ${S.n} · n_p = ${S.np}`;
+}
+function onParam(id) {
+  if (id === "np") { pf = new ParticleFilter(S.np, rng); resetStats(); }
+  if (id === "xm") { $("#range").max = S.xm; S.center[0] = Math.min(S.center[0], S.xm * 0.98); }
+  if (["tau", "h", "hb", "att", "rough", "texp", "thr", "ar", "ad", "xm", "zm", "n"].includes(id)) resetStats();
+  dirty.charts = true;
+  refreshIfPaused();
+}
+
+function applyPreset(key) {
+  const P = PRESETS[key];
+  Object.assign(S, {
+    preset: key, surface: P.surface, h: P.h, rough: P.rough, ior: P.ior, gain: P.gain, texp: P.texp,
+    center: P.center.slice(), motion: reduceMotion ? "hold" : P.motion, n: P.n, np: P.np, ar: P.ar, ad: P.ad,
+    xm: P.xm, zm: P.zm, thr: P.thr, lim: P.lim, tau: 0, hb: 0, t: 0,
+  });
+  S.T = traj(0);
+  $("#range").min = 2; $("#range").max = S.xm; $("#range").step = S.xm > 20 ? 0.5 : 0.1;
+  $("#lat").min = P.lim.lat[0]; $("#lat").max = P.lim.lat[1];
+  $("#alt").min = P.lim.alt[0]; $("#alt").max = P.lim.alt[1];
+  $("#h").min = P.lim.h[0]; $("#h").max = P.lim.h[1];
+  $("#presetNote").textContent = P.note;
+  pf = new ParticleFilter(S.np, rng); hist = []; liveErr = []; resetStats();
+  for (const b of document.querySelectorAll("#presetBtns button")) b.setAttribute("aria-pressed", String(b.dataset.k === key));
+  setMotion(S.motion);
+  resetView();
+  syncSliders();
+  tick(0);
+}
+function setMotion(m) {
+  if (m !== "hold" && S.motion === "hold") S.t = 0;
+  S.motion = m;
+  for (const b of document.querySelectorAll("#motionBtns button")) b.setAttribute("aria-pressed", String(b.dataset.k === m));
+  syncSliders();
+}
+function setEq9(v) {
+  S.eq9 = v;
+  for (const b of document.querySelectorAll("#eq9Btns button")) b.setAttribute("aria-pressed", String(b.dataset.k === v));
+  resetStats(); dirty.charts = true; refreshIfPaused();
+}
+
+function initControls() {
+  const pb = $("#presetBtns");
+  for (const k in PRESETS) {
+    const b = document.createElement("button"); b.type = "button"; b.dataset.k = k; b.textContent = PRESETS[k].label;
+    b.addEventListener("click", () => applyPreset(k)); pb.appendChild(b);
+  }
+  const mb = $("#motionBtns");
+  for (const [k, l] of MOTIONS) {
+    const b = document.createElement("button"); b.type = "button"; b.dataset.k = k; b.textContent = l;
+    b.addEventListener("click", () => { if (k === "hold") S.center = S.T.slice(); setMotion(k); refreshIfPaused(); });
+    mb.appendChild(b);
+  }
+  const eb = $("#eq9Btns");
+  if (eb) for (const [k, l] of [["ray", "On ray a→r (Fig. 3a)"], ["eq9", "Eq. (9) as typeset"]]) {
+    const b = document.createElement("button"); b.type = "button"; b.dataset.k = k; b.textContent = l;
+    b.setAttribute("aria-pressed", String(S.eq9 === k));
+    b.addEventListener("click", () => setEq9(k)); eb.appendChild(b);
+  }
+  $("#runBtn").addEventListener("click", () => {
+    S.run = !S.run;
+    $("#runBtn").textContent = S.run ? "Pause" : "Run";
+    $("#runBtn").setAttribute("aria-pressed", String(S.run));
+  });
+  $("#stepBtn").addEventListener("click", () => {
+    if (S.run) { S.run = false; $("#runBtn").textContent = "Run"; $("#runBtn").setAttribute("aria-pressed", "false"); }
+    tick(FRAME);
+  });
+  $("#resetBtn").addEventListener("click", () => { pf.reset(); hist = []; liveErr = []; resetStats(); tick(0); });
+  $("#viewBtn").addEventListener("click", resetView);
+
+  bindSlider("range", () => S.center[0], (v) => (S.center[0] = v), (v) => `${S.motion === "sweep" ? "sweeping" : v.toFixed(1) + " m"}`);
+  bindSlider("lat", () => S.center[1], (v) => (S.center[1] = v), (v) => `${sgn(v)} m`);
+  bindSlider("alt", () => S.center[2], (v) => (S.center[2] = v), (v) => `${sgn(v, 2)} m`);
+  bindSlider("h", () => S.h, (v) => (S.h = v), (v) => `${v.toFixed(2)} m`);
+  bindSlider("rough", () => S.rough, (v) => (S.rough = v), (v) => `${v.toFixed(1)}° slope σ`);
+  bindSlider("tau", () => S.tau, (v) => (S.tau = v), (v) => `${sgn(v)}°`);
+  bindSlider("hb", () => S.hb, (v) => (S.hb = v), (v) => `${sgn(v, 0)} %`);
+  bindSlider("att", () => S.att, (v) => (S.att = v), (v) => `${v.toFixed(1)}° rms`);
+  bindSlider("texp", () => S.texp, (v) => (S.texp = v), (v) => `${v.toFixed(1)} ms`);
+  bindSlider("n", () => S.n, (v) => (S.n = v), (v) => `${v}`);
+  bindSlider("np", () => S.np, (v) => (S.np = v), (v) => `${v}`);
+  bindSlider("ar", () => S.ar, (v) => (S.ar = v), (v) => `${v.toFixed(1)}°`);
+  bindSlider("ad", () => S.ad, (v) => (S.ad = v), () => "");
+  bindSlider("xm", () => S.xm, (v) => (S.xm = v), () => "");
+  bindSlider("zm", () => S.zm, (v) => (S.zm = v), () => "");
+  bindSlider("thr", () => S.thr, (v) => (S.thr = v), (v) => `${v} / 255`);
+
+  const dv = $("#dev");
+  if (dv) {
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "D" && e.shiftKey && !/input|textarea/i.test(document.activeElement.tagName)) {
+        dv.hidden = !dv.hidden; dv.open = !dv.hidden;
+      }
+    });
+    if (location.hash === "#dev") { dv.hidden = false; dv.open = true; }
+  }
+}
+
+/* =====================================================================
+   Main loop
+   ===================================================================== */
+let lastTs = null, acc = 0;
+function loop(ts) {
+  const now = ts / 1000;
+  const dt = lastTs === null ? 0 : Math.min(0.25, now - lastTs);
+  lastTs = now;
+  if (S.run) {
+    acc += dt;
+    let k = 0;
+    while (acc >= FRAME && k < 3) { tick(FRAME); acc -= FRAME; k++; }
+    if (k === 3) acc = 0;
+  }
+  drawScene();
+  if (dirty.cam || dirty.all) { drawCamera(); dirty.cam = false; }
+  if (dirty.charts || dirty.all) { drawTraces(); drawTilt(); dirty.charts = false; }
+  dirty.all = false;
+  requestAnimationFrame(loop);
+}
+
+readTokens();
+if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTokens);
+new MutationObserver(readTokens).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+window.addEventListener("resize", () => { dirty.all = true; });
+buildSteps();
+initControls();
+applyPreset("pvc");
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

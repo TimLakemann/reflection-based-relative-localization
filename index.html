@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Primary Meta Tags -->
+  <title>Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers</title>
+  <meta name="title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
+  <meta name="description" content="UAVs localize their teammates from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder. IEEE RA-L 2026.">
+  <meta name="keywords" content="relative localization, multi-UAV, UAV swarm, active markers, UV LED, surface reflection, water reflection, UVDAR, particle filter, aerial robotics">
+  <meta name="author" content="Tim Lakemann, Daniel Bonilla Licea, Viktor Walter, Martin Saska">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph / social preview.
+       TODO: once the GitHub Pages URL is known, replace SITE_URL below with it
+       (e.g. https://timlakemann.github.io/reflection-based-localization/). -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Multi-Robot Systems Group, CTU in Prague">
+  <meta property="og:title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
+  <meta property="og:description" content="UAVs localize their teammates from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder.">
+  <meta property="og:url" content="SITE_URL">
+  <meta property="og:image" content="SITE_URL/static/figures/fig1_teaser.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
+  <meta name="twitter:description" content="UAVs localize their teammates from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder.">
+  <meta name="twitter:image" content="SITE_URL/static/figures/fig1_teaser.png">
+
+  <!-- Google Scholar -->
+  <meta name="citation_title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
+  <meta name="citation_author" content="Lakemann, Tim">
+  <meta name="citation_author" content="Bonilla Licea, Daniel">
+  <meta name="citation_author" content="Walter, Viktor">
+  <meta name="citation_author" content="Saska, Martin">
+  <meta name="citation_publication_date" content="2026">
+  <meta name="citation_journal_title" content="IEEE Robotics and Automation Letters">
+  <meta name="citation_pdf_url" content="static/pdfs/lakemann2026reflection.pdf">
+
+  <meta name="theme-color" content="#2459B8">
+  <link rel="icon" type="image/svg+xml" href="static/images/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="static/images/favicon.ico" sizes="48x48">
+  <link rel="apple-touch-icon" href="static/images/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+  <link rel="stylesheet" href="static/css/site.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script defer src="static/js/method-diagram.js"></script>
+  <script defer src="static/js/main.js"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "headline": "Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers",
+    "author": [
+      {"@type": "Person", "name": "Tim Lakemann", "affiliation": {"@type": "Organization", "name": "Czech Technical University in Prague"}},
+      {"@type": "Person", "name": "Daniel Bonilla Licea", "affiliation": {"@type": "Organization", "name": "Mohammed VI Polytechnic University"}},
+      {"@type": "Person", "name": "Viktor Walter", "affiliation": {"@type": "Organization", "name": "Czech Technical University in Prague"}},
+      {"@type": "Person", "name": "Martin Saska", "affiliation": {"@type": "Organization", "name": "Czech Technical University in Prague"}}
+    ],
+    "datePublished": "2026",
+    "publisher": {"@type": "Organization", "name": "IEEE Robotics and Automation Letters"},
+    "keywords": ["relative localization", "multi-UAV", "active markers", "surface reflection"],
+    "isAccessibleForFree": true
+  }
+  </script>
+</head>
+<body>
+
+  <!-- Scroll to Top Button -->
+  <button class="scroll-to-top" onclick="scrollToTop()" title="Scroll to top" aria-label="Scroll to top">
+    <i class="fas fa-chevron-up"></i>
+  </button>
+
+  <!-- More Works Dropdown -->
+  <div class="more-works-container">
+    <button class="more-works-btn" onclick="toggleMoreWorks()" title="Related work from the MRS group">
+      <i class="fas fa-flask"></i>
+      Related Work
+      <i class="fas fa-chevron-down dropdown-arrow"></i>
+    </button>
+    <div class="more-works-dropdown" id="moreWorksDropdown">
+      <div class="dropdown-header">
+        <h4>Related work from the MRS group</h4>
+        <button class="close-btn" onclick="toggleMoreWorks()" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="works-list">
+        <a href="https://doi.org/10.1016/j.robot.2025.105175" class="work-item" target="_blank" rel="noopener">
+          <div class="work-info">
+            <h5>Fast Onboard Tracking of Active Blinking Markers for Relative Localization</h5>
+            <p>The blinking-marker tracker this work builds on to detect and identify each LED.</p>
+            <span class="work-venue">Robotics and Autonomous Systems 2025</span>
+          </div>
+          <i class="fas fa-external-link-alt"></i>
+        </a>
+        <a href="https://doi.org/10.1007/s10514-025-10208-5" class="work-item" target="_blank" rel="noopener">
+          <div class="work-info">
+            <h5>Optical Communication-Based Identification for Multi-UAV Systems</h5>
+            <p>Design of the unique blinking sequences that tell team members apart.</p>
+            <span class="work-venue">Autonomous Robots 2025</span>
+          </div>
+          <i class="fas fa-external-link-alt"></i>
+        </a>
+        <a href="https://doi.org/10.1109/LRA.2019.2901683" class="work-item" target="_blank" rel="noopener">
+          <div class="work-info">
+            <h5>UVDAR System for Visual Relative Localization</h5>
+            <p>The UV active-marker baseline that this work compares against outdoors.</p>
+            <span class="work-venue">IEEE RA-L 2019</span>
+          </div>
+          <i class="fas fa-external-link-alt"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <main id="main-content">
+
+  <!-- ============================== Title ============================== -->
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <span class="publication-venue">IEEE Robotics and Automation Letters · 2026</span>
+            <h1 class="title is-1 publication-title">Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers</h1>
+            <div class="is-size-5 publication-authors">
+              <span class="author-block">Tim Lakemann<sup>1</sup>,</span>
+              <span class="author-block">Daniel Bonilla Licea<sup>2</sup>,</span>
+              <span class="author-block">Viktor Walter<sup>1</sup>,</span>
+              <span class="author-block">Martin Saska<sup>1</sup></span>
+            </div>
+            <div class="is-size-6 publication-affiliations">
+              <span class="author-block"><sup>1</sup><a href="https://mrs.fel.cvut.cz" target="_blank" rel="noopener">Multi-Robot Systems Group</a>, Czech Technical University in Prague</span>
+              <span class="author-block"><sup>2</sup>Mohammed VI Polytechnic University, Morocco</span>
+            </div>
+
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="static/pdfs/lakemann2026reflection.pdf" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fas fa-file-pdf"></i></span><span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="#video" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fab fa-youtube"></i></span><span>Video</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <!-- TODO: once the repository is public, replace this span with:
+                <a href="https://github.com/TimLakemann/reflection_based_localizaiton" target="_blank" rel="noopener" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fab fa-github"></i></span><span>Code</span>
+                </a> -->
+                <span class="button is-normal is-rounded is-dark is-soon" aria-disabled="true" title="The code will be released soon">
+                  <span class="icon"><i class="fab fa-github"></i></span><span>Code</span><span class="soon">(coming soon)</span>
+                </span>
+              </span>
+              <span class="link-block">
+                <a href="simulator.html" class="external-link button is-normal is-rounded is-dark js-open-sim">
+                  <span class="icon"><i class="fas fa-cube"></i></span><span>Interactive demo</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="#BibTeX" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fas fa-quote-right"></i></span><span>BibTeX</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Teaser ============================== -->
+  <section class="hero teaser">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <figure class="teaser-figure">
+          <img src="static/figures/fig1_teaser.png" alt="Outdoor flight over a pond and an indoor flight in a dark corridor. Blue boxes mark the UAV's active markers; red boxes mark their reflections on the water and on the floor." width="1018" height="527">
+          <figcaption>Outdoor (left) and indoor dark (right) flights. <span class="c-dir">Blue</span>: the teammate's active markers. <span class="c-ref">Red</span>: their reflection on the surface.</figcaption>
+        </figure>
+        <p class="lead">
+          Reflections of a teammate's LEDs are usually something to filter out. We use them instead.
+          The reflection on calm water or a polished floor gives the observer a second view of the same light,
+          seen from its own mirror image below the surface. With a camera, the teammate's blinking markers and a
+          single-beam rangefinder, that is enough to recover the teammate's 3D position. No prior knowledge of its size,
+          marker layout or the surface's optical properties is needed.
+        </p>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value">&gt;&thinsp;30&nbsp;m</div>
+            <div class="stat-label">reliable range over water, where the UVDAR active-marker baseline breaks down past 20&nbsp;m</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">&minus;37.3&nbsp;%</div>
+            <div class="stat-label">lower error along the optical axis than UVDAR outdoors (statistically significant)</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">27&nbsp;cm</div>
+            <div class="stat-label">smallest teammate localized, carrying a single compact LED array</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">3 sensors</div>
+            <div class="stat-label">camera, active markers and a 1D rangefinder. No radio link between robots.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Video ============================== -->
+  <section class="hero is-small is-light" id="video">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <h2 class="title is-3 has-text-centered">Video</h2>
+        <!-- TODO: put the YouTube video ID (the part after "watch?v=") into data-youtube-id.
+             The iframe is inserted automatically; nothing else needs to change. -->
+        <div class="publication-video video-slot" id="video-slot" data-youtube-id="">
+          <div class="video-placeholder">
+            <i class="fab fa-youtube fa-3x"></i>
+            <p>The video will appear here soon.</p>
+            <a href="https://mrs.fel.cvut.cz/reflection-based-relative-localization" target="_blank" rel="noopener">Watch it on the MRS group website <i class="fas fa-external-link-alt"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Abstract ============================== -->
+  <section class="section">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              Reflections of active markers in the environment are a common source of ambiguity in onboard visual relative localization.
+              This work presents a novel approach that exploits these typically unwanted reflections for onboard relative localization
+              in heterogeneous multi-UAV teams operating over specular, near-planar surfaces such as calm water and flat indoor floors.
+              Using only a camera, active markers, and a single-beam rangefinder, the method requires no prior knowledge of robot size,
+              marker configuration, or surface reflectance properties, and propagates the uncertainty introduced by surface irregularities,
+              including those of dynamic water surfaces.
+              We further characterize, analytically and experimentally, how surface tilt biases the estimate, and identify the slope range
+              over which the level-surface assumption holds.
+              Indoor multi-UAV and outdoor experiments validate the localization accuracy, demonstrating reliable operation across varying
+              lighting conditions and greater effective range than state-of-the-art vision-based active-marker methods, with higher accuracy beyond 30&nbsp;m.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Method ============================== -->
+  <section class="section hero is-light" id="method">
+    <div class="container">
+      <h2 class="title is-3 has-text-centered">How it works</h2>
+      <p class="section-intro">
+        The observer sees the teammate's LEDs twice: directly, and reflected in the surface below.
+        Each view defines a cone of positions where the teammate could be. The teammate is where the two cones meet.
+        Click a step to see its part of the geometry.
+      </p>
+
+      <div class="method-grid">
+        <div class="method-figure">
+          <svg id="method-svg" viewBox="0 0 800 440" role="img" aria-labelledby="method-svg-title">
+            <title id="method-svg-title">Side view: observer UAV, transmitting UAV, the reflecting surface, the direct cone and the reflection cone, and their intersection.</title>
+          </svg>
+          <div class="method-legend" aria-hidden="true">
+            <span><i style="background:var(--c-dir)"></i>direct cone</span>
+            <span><i style="background:var(--c-ref)"></i>reflection cone</span>
+            <span><i style="background:var(--c-inl)"></i>inliers</span>
+            <span><i style="background:var(--c-est)"></i>particles · estimate</span>
+          </div>
+          <p class="method-note">Side view, cone angles exaggerated. The paper uses elliptical cones in 3D.</p>
+        </div>
+
+        <div class="method-panel">
+          <div class="step-nav" role="tablist" aria-label="Method steps" id="step-nav"></div>
+          <article class="step-card" id="step-card" aria-live="polite">
+            <div class="step-kicker" id="step-kicker"></div>
+            <h3 class="step-title" id="step-title"></h3>
+            <div class="step-body" id="step-body"></div>
+          </article>
+          <div class="step-controls">
+            <button type="button" class="step-btn" id="step-prev"><i class="fas fa-arrow-left"></i> Prev</button>
+            <button type="button" class="step-btn" id="step-next">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <i class="fas fa-lightbulb"></i>
+        <p><strong>Why the reflection gives range.</strong> A stereo camera's baseline is limited by the size of the drone.
+          Here the observer and its mirror image below the surface form a vertical baseline of \(2h\), where \(h\) is the
+          observer's height. The rangefinder measures \(h\) directly, so the team members' size and marker layout never enter the estimate.</p>
+      </div>
+
+      <details class="paper-figure">
+        <summary>Show the geometry figure from the paper</summary>
+        <figure>
+          <img src="static/figures/fig3_method.png" alt="Fig. 3 of the paper: side view and top-down view of the elliptical reflection cone and direct cone." loading="lazy">
+          <figcaption>Fig. 3: (a) Side view: the transmitter lies in the intersection of two elliptical cones (gray area). (b) Top-down view of the observer with the ellipse around the diffuse reflection.</figcaption>
+        </figure>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================== Interactive simulator ============================== -->
+  <section class="section" id="simulator">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Try it in your browser</h2>
+      <div class="sim-card">
+        <a class="sim-preview js-open-sim" href="simulator.html" aria-label="Launch the interactive simulator">
+          <img src="static/images/simulator_preview.jpg" alt="Screenshot of the interactive simulator: a 3D scene with the observer, the transmitter, both cones and the particle cloud, next to parameter controls." loading="lazy" width="1200" height="750">
+          <span class="sim-play"><i class="fas fa-play"></i> Launch simulator</span>
+        </a>
+        <div class="sim-text">
+          <h3>Reflection-based localization, live</h3>
+          <p>
+            The full pipeline runs in your browser on a synthetic onboard UV camera image: blob centroids, ellipse extremes,
+            both elliptical cones, cone sampling and the particle filter.
+            Drag the transmitter around and see how the estimate responds when you change
+          </p>
+          <ul>
+            <li>surface roughness and <strong>surface tilt</strong> (shows the singularity at \(d = h/\tan|\tau|\))</li>
+            <li>a bias in the observer's <strong>height measurement</strong></li>
+            <li>exposure, threshold \(\sigma\), cone half-angles</li>
+            <li>samples \(n\) and particles \(n_p\), preset to the paper's indoor and outdoor values</li>
+          </ul>
+          <div class="sim-actions">
+            <a href="simulator.html" class="button is-dark is-rounded js-open-sim">
+              <span class="icon"><i class="fas fa-expand"></i></span><span>Open here</span>
+            </a>
+            <a href="simulator.html" target="_blank" rel="noopener" class="button is-rounded is-outlined-dark">
+              <span class="icon"><i class="fas fa-external-link-alt"></i></span><span>Open in new tab</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Experiments ============================== -->
+  <section class="section hero is-light" id="experiments">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Experiments</h2>
+      <p class="section-intro">
+        Indoors over PVC and tiled floors, by day and at night, with heterogeneous teams. Outdoors over a pond against
+        the UVDAR active-marker system. Ground truth from UWB indoors and RTK outdoors.
+      </p>
+
+      <div class="gallery">
+        <figure class="gallery-item gallery-wide">
+          <a href="static/figures/fig7_outdoor_setup.png" target="_blank"><img src="static/figures/fig7_outdoor_setup.png" alt="Outdoor experiment over a pond: observer, transmitting UAV with markers, and reflections. Right: onboard UV image with the detected marker centroid and the reflection ellipse." loading="lazy"></a>
+          <figcaption><strong>Outdoor, over water.</strong> Left: transmitting UAV (<span class="c-dir">blue</span>) and its reflections (<span class="c-ref">red</span>). Right: onboard UV-filtered image with the detected marker centroid and the reflection ellipse.</figcaption>
+        </figure>
+        <figure class="gallery-item">
+          <a href="static/figures/fig4_indoor_setups.png" target="_blank"><img src="static/figures/fig4_indoor_setups.png" alt="Indoor experiments on PVC and tiled floors and in the dark, and the heterogeneous multi-UAV experiment." loading="lazy"></a>
+          <figcaption><strong>Indoor.</strong> PVC floor (top left), darkness (top center), tiles (top right), and the heterogeneous multi-UAV flight (bottom).</figcaption>
+        </figure>
+        <figure class="gallery-item">
+          <a href="static/images/mav_led_array.jpg" target="_blank"><img src="static/images/mav_led_array.jpg" alt="The micro aerial vehicle with a compact circular UV LED array, a Raspberry Pi 5 and a camera." loading="lazy"></a>
+          <figcaption><strong>The 27&nbsp;cm MAV.</strong> A single compact LED array is enough. Marker-spacing methods such as UVDAR cannot use it.</figcaption>
+        </figure>
+        <figure class="gallery-item on-dark">
+          <a href="static/figures/fig2_high_exposure.png" target="_blank"><img src="static/figures/fig2_high_exposure.png" alt="Onboard outdoor image with the markers in blue and their diffuse reflections on the water in red." loading="lazy"></a>
+          <figcaption><strong>Onboard view.</strong> The markers (<span class="c-dir">blue</span>) and their reflections spread by the waves (<span class="c-ref">red</span>). The spread sets the reflection cone's width.</figcaption>
+        </figure>
+        <figure class="gallery-item on-dark">
+          <a href="static/images/multi_uav_onboard.png" target="_blank"><img src="static/images/multi_uav_onboard.png" alt="Onboard UV camera view in the multi-UAV experiment with two transmitters and their floor reflections." loading="lazy"></a>
+          <figcaption><strong>Multi-UAV, onboard.</strong> Two teammates and their floor reflections, each identified by its own blinking sequence.</figcaption>
+        </figure>
+      </div>
+
+      <div class="platforms">
+        <div class="platform">
+          <h4><i class="fas fa-helicopter"></i> UAV</h4>
+          <p>F450 / Holybro X500 frame, Intel NUC 10 i7FNK, BlueFOX 752×480 at 10–30&nbsp;Hz</p>
+        </div>
+        <div class="platform">
+          <h4><i class="fas fa-microchip"></i> MAV</h4>
+          <p>Custom 27&nbsp;cm frame, Raspberry Pi&nbsp;5 (8&nbsp;GB), ArduCam 640×400 at 10&nbsp;Hz</p>
+        </div>
+        <div class="platform">
+          <h4><i class="fas fa-eye"></i> Sensing</h4>
+          <p>Fisheye lens with UV bandpass filter, downward LiDAR rangefinder indoors, RTK height outdoors</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Results ============================== -->
+  <section class="section" id="results">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Results</h2>
+
+      <div class="tabs is-toggle is-centered is-small results-tabs" role="tablist">
+        <ul>
+          <li class="is-active"><a role="tab" aria-selected="true" data-tab="outdoor" href="#results-outdoor">Outdoor vs. UVDAR</a></li>
+          <li><a role="tab" aria-selected="false" data-tab="indoor" href="#results-indoor">Indoor</a></li>
+          <li><a role="tab" aria-selected="false" data-tab="multi" href="#results-multi">Multi-UAV onboard</a></li>
+          <li><a role="tab" aria-selected="false" data-tab="robust" href="#results-robust">Robustness</a></li>
+        </ul>
+      </div>
+
+      <!-- Outdoor -->
+      <div class="tab-panel is-active" id="results-outdoor" data-panel="outdoor" role="tabpanel">
+        <p class="panel-lead">
+          Over water, our method kept tracking beyond 30&nbsp;m. UVDAR, which infers distance from the pixel spacing
+          between markers, became unreliable past 20&nbsp;m. Along the optical axis our error was 18.5–37.3&nbsp;% lower in all three flights.
+        </p>
+        <div class="plot-switch" data-target="plot-outdoor">
+          <button type="button" class="chip is-active" data-src="static/figures/out_ds1.svg" data-alt="Outdoor experiment 1">Flight 1</button>
+          <button type="button" class="chip" data-src="static/figures/out_ds2.svg" data-alt="Outdoor experiment 2">Flight 2</button>
+          <button type="button" class="chip" data-src="static/figures/out_ds3.svg" data-alt="Outdoor experiment 3">Flight 3</button>
+        </div>
+        <figure class="plot">
+          <img id="plot-outdoor" src="static/figures/out_ds1.svg" alt="Relative position over time for outdoor experiment 1: ours, UVDAR and RTK ground truth." loading="lazy">
+          <figcaption class="plot-legend">
+            <span><i style="background:#0088dd"></i>ours</span>
+            <span><i style="background:#ff9d3a"></i>UVDAR</span>
+            <span><i style="background:#000"></i>RTK ground truth</span>
+          </figcaption>
+        </figure>
+        <div class="table-wrap">
+          <table class="table is-fullwidth results-table">
+            <caption>Mean absolute error ± one standard deviation [m]</caption>
+            <thead>
+              <tr><th>Flight</th><th>Method</th><th>x (optical axis)</th><th>y</th><th>z</th></tr>
+            </thead>
+            <tbody>
+              <tr><th rowspan="2">1</th><td class="m-ours">Ours</td><td class="win">3.50 ± 1.86<sup>*</sup></td><td class="win">1.18 ± 0.80<sup>*</sup></td><td>1.04 ± 1.57</td></tr>
+              <tr><td>UVDAR</td><td>5.58 ± 5.77</td><td>1.37 ± 1.09</td><td>0.78 ± 0.83</td></tr>
+              <tr class="group"><th rowspan="2">2</th><td class="m-ours">Ours</td><td class="win">2.42 ± 1.50<sup>*</sup></td><td>1.73 ± 0.95</td><td>0.70 ± 0.47</td></tr>
+              <tr><td>UVDAR</td><td>2.97 ± 2.14</td><td>1.76 ± 0.97</td><td>0.67 ± 0.44</td></tr>
+              <tr class="group"><th rowspan="2">3</th><td class="m-ours">Ours</td><td class="win">5.01 ± 4.15<sup>*</sup></td><td class="win">3.29 ± 1.58<sup>*</sup></td><td>0.98 ± 0.85</td></tr>
+              <tr><td>UVDAR</td><td>7.00 ± 6.03</td><td>7.96 ± 5.60</td><td>0.97 ± 0.67</td></tr>
+            </tbody>
+          </table>
+          <p class="table-note"><sup>*</sup> Significantly lower than UVDAR (Wilcoxon p &lt; 0.05, 95&nbsp;% CI of the paired difference fully below zero).
+            Along z, UVDAR was 1–25&nbsp;% lower, but the difference was not significant.</p>
+        </div>
+      </div>
+
+      <!-- Indoor -->
+      <div class="tab-panel" id="results-indoor" data-panel="indoor" role="tabpanel" hidden>
+        <p class="panel-lead">
+          Two UAVs, each with a single compact LED array, over PVC and tiled floors, by day and at night.
+          The largest error is along the optical axis, as expected for monocular depth. Accuracy holds across floor types and lighting.
+        </p>
+        <div class="plot-switch" data-target="plot-indoor">
+          <button type="button" class="chip is-active" data-src="static/figures/indoor_exp_1.svg" data-alt="Indoor experiment 1, PVC floor, daylight">1 · PVC, day</button>
+          <button type="button" class="chip" data-src="static/figures/indoor_exp_2.svg" data-alt="Indoor experiment 2, PVC floor, night">2 · PVC, night</button>
+          <button type="button" class="chip" data-src="static/figures/indoor_exp_4.svg" data-alt="Indoor experiment 3, tiles, night">3 · Tiles, night</button>
+          <button type="button" class="chip" data-src="static/figures/indoor_exp_5.svg" data-alt="Indoor experiment 4, tiles, night">4 · Tiles, night</button>
+        </div>
+        <figure class="plot">
+          <img id="plot-indoor" src="static/figures/indoor_exp_1.svg" alt="Indoor experiment 1, PVC floor, daylight" loading="lazy">
+          <figcaption class="plot-legend">
+            <span><i style="background:#0088dd"></i>ours</span>
+            <span><i style="background:#000"></i>UWB ground truth</span>
+          </figcaption>
+        </figure>
+        <div class="table-wrap">
+          <table class="table is-fullwidth results-table">
+            <caption>Mean absolute error ± one standard deviation [m]</caption>
+            <thead>
+              <tr><th></th><th>1 · PVC, day</th><th>2 · PVC, night</th><th>3 · Tiles, night</th><th>4 · Tiles, night</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>x</th><td>1.29 ± 0.67</td><td>2.12 ± 0.70</td><td>1.30 ± 0.61</td><td>1.22 ± 0.60</td></tr>
+              <tr><th>y</th><td>0.65 ± 0.52</td><td>1.09 ± 0.74</td><td>0.68 ± 0.42</td><td>0.61 ± 0.41</td></tr>
+              <tr><th>z</th><td>0.12 ± 0.09</td><td>0.08 ± 0.12</td><td>0.10 ± 0.09</td><td>0.08 ± 0.09</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Multi-UAV -->
+      <div class="tab-panel" id="results-multi" data-panel="multi" role="tabpanel" hidden>
+        <p class="panel-lead">
+          Three heterogeneous platforms, all running the method onboard, including the MAV on a Raspberry&nbsp;Pi&nbsp;5.
+          Between 105&nbsp;s and 155&nbsp;s the MAV was deliberately flown in front of the observer to cause interference.
+          Outside that interval, both teammates were tracked reliably.
+        </p>
+        <div class="columns">
+          <div class="column">
+            <figure class="plot">
+              <img src="static/figures/zengerova_online_id1.svg" alt="Planar distance and height over time, observer to UAV, multi-UAV experiment." loading="lazy">
+              <figcaption>Observer → UAV</figcaption>
+            </figure>
+          </div>
+          <div class="column">
+            <figure class="plot">
+              <img src="static/figures/zengerova_online_id4.svg" alt="Planar distance and height over time, observer to MAV, multi-UAV experiment." loading="lazy">
+              <figcaption>Observer → MAV</figcaption>
+            </figure>
+          </div>
+        </div>
+        <p class="plot-legend centered">
+          <span><i style="background:#0088dd"></i>ours</span>
+          <span><i style="background:#000"></i>UWB ground truth</span>
+        </p>
+        <div class="mini-stats">
+          <div><span class="v">1.50 ± 1.44 m</span><span class="l">MAE \(d_{xy}\), UAV</span></div>
+          <div><span class="v">1.25 ± 0.93 m</span><span class="l">MAE \(d_{xy}\), MAV</span></div>
+          <div><span class="v">78 / 97 ms</span><span class="l">median latency, NUC / Raspberry Pi 5</span></div>
+          <div><span class="v">8.4 / 6.8 Hz</span><span class="l">mean update rate, NUC / Raspberry Pi 5</span></div>
+        </div>
+        <p class="table-note">About 80&nbsp;% of each frame's time goes to sampling the reflection cone. The particle filter update stays below 3&nbsp;ms.
+          The estimator always takes the newest frame, so an overrun lowers the rate but does not add latency.</p>
+      </div>
+
+      <!-- Robustness -->
+      <div class="tab-panel" id="results-robust" data-panel="robust" role="tabpanel" hidden>
+        <div class="columns is-variable is-6">
+          <div class="column is-7">
+            <h4 class="sub-title">Surface tilt</h4>
+            <figure class="plot">
+              <img src="static/figures/tilt_sensitivity_with_theory.svg" alt="Euclidean localization error versus range for surface tilts between −15 and +15 degrees, theory and measurement." loading="lazy">
+              <figcaption class="plot-legend">
+                <span><i style="background:#ff9d3a"></i>15°</span>
+                <span><i style="background:#00377d"></i>10°</span>
+                <span><i style="background:#ff73b6"></i>5°</span>
+                <span><i style="background:#d53034"></i>−5°</span>
+                <span><i style="background:#0088dd"></i>−10°</span>
+                <span><i style="background:#6600ff"></i>−15°</span>
+                <span class="legend-note">solid: theory · dashed: measured</span>
+              </figcaption>
+            </figure>
+            <p>
+              The method assumes a level surface. If the surface rises toward the transmitter (\(\tau &lt; 0\)), the estimate
+              diverges at \(d_{\text{sing}} = h/\tan|\tau|\). If it falls away (\(\tau &gt; 0\)), the range is underestimated but stays bounded.
+              Calm water is well within the safe range. At \(|\tau| = 5^\circ\) the error exceeds that of the level-surface experiments only beyond about 8&nbsp;m.
+            </p>
+          </div>
+          <div class="column">
+            <h4 class="sub-title">Height bias</h4>
+            <p>The observer's height sets the scale of the whole estimate. We biased it by ±15&nbsp;% on the outdoor flights.</p>
+            <div class="table-wrap">
+              <table class="table is-fullwidth results-table compact">
+                <caption>Change in MAE [m] under a height bias</caption>
+                <thead>
+                  <tr><th rowspan="2">Flight</th><th colspan="2">x</th><th colspan="2">y</th><th colspan="2">z</th></tr>
+                  <tr><th>−15%</th><th>+15%</th><th>−15%</th><th>+15%</th><th>−15%</th><th>+15%</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th>1</th><td>+0.33</td><td>−0.23</td><td>−0.03</td><td>−0.01</td><td>+0.02</td><td>−0.04</td></tr>
+                  <tr><th>2</th><td>+0.07</td><td>+0.14</td><td>+0.39</td><td>−0.16</td><td>−0.05</td><td>+0.09</td></tr>
+                  <tr><th>3</th><td>+0.92</td><td>+1.22</td><td>+0.10</td><td>−0.55</td><td>+0.30</td><td>+0.15</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="table-note">An ultrasonic rangefinder on the same flights deviated from RTK by 4&nbsp;cm RMS, below 4&nbsp;% of the flight height.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== Comparison ============================== -->
+  <section class="section hero is-light" id="comparison">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Compared with other onboard approaches</h2>
+      <div class="table-wrap">
+        <table class="table is-fullwidth comp-table">
+          <thead>
+            <tr><th></th><th class="m-ours">Ours</th><th>UVDAR</th><th>CREPES</th><th>Swarm-LIO2</th><th>CNN</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>Hardware</th><td>Cam, LED, Rng</td><td>Cam, LED</td><td>Cam, LED, UWB, IMU</td><td>LiDAR, IMU</td><td>Cam, GPU</td></tr>
+            <tr><th>Mass / power [g / W]<sup>1</sup></th><td>62 / 6.5</td><td>40 / 5.9</td><td>130<sup>★</sup> / ≤4<sup>★</sup></td><td>265 / 6.5</td><td>200<sup>★</sup> / 17<sup>★</sup></td></tr>
+            <tr><th>Output rate [Hz]</th><td>10</td><td>60</td><td>100</td><td>30</td><td>5</td></tr>
+            <tr><th>Error @ range [m]<sup>2</sup></th><td>MAE<sub>x</sub> 2.4–5.0 @ ≤40</td><td>MAE<sub>x</sub> 3.0–7.0 @ ≤40</td><td>P25–P75 0.10–0.16 @ ≤27.5</td><td>std. 0.05</td><td>P25–P75 0.3–0.7 @ 6</td></tr>
+            <tr><th>Approx. cost [$]</th><td>570</td><td>450</td><td>500<sup>★</sup></td><td>700<sup>★</sup></td><td>500<sup>★</sup></td></tr>
+            <tr><th>Direct ID</th><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+            <tr><th>RF-free</th><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+            <tr><th>Lighting-robust</th><td class="yes">✓</td><td class="yes">✓</td><td class="part">◐</td><td class="yes">✓</td><td class="no">✗</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">
+        <sup>1</sup> Sensing hardware only, onboard compute excluded.
+        <sup>2</sup> As reported in each original publication; the metrics are not directly comparable.
+        MAE<sub>x</sub>: mean absolute error along the optical axis.
+        <sup>★</sup> Estimated from datasheets.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================== BibTeX ============================== -->
+  <section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+      <div class="bibtex-header">
+        <h2 class="title">BibTeX</h2>
+        <button class="copy-bibtex-btn" onclick="copyBibTeX()" title="Copy BibTeX to clipboard">
+          <i class="fas fa-copy"></i>
+          <span class="copy-text">Copy</span>
+        </button>
+      </div>
+      <!-- TODO: add volume, number, pages and doi once the paper is in IEEE Xplore. -->
+      <pre id="bibtex-code"><code>@article{lakemann2026reflection,
+  title   = {Reflection-Based Relative Localization for Cooperative {UAV} Teams Using Active Markers},
+  author  = {Lakemann, Tim and Bonilla Licea, Daniel and Walter, Viktor and Saska, Martin},
+  journal = {IEEE Robotics and Automation Letters},
+  year    = {2026}
+}</code></pre>
+    </div>
+  </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="columns is-centered">
+        <div class="column is-8">
+          <div class="content">
+            <p class="funding">
+              This work was funded by the CTU grant no. SGS26/077/OHK3/1T/13, the Czech Science Foundation (GAČR) under research
+              project no. 26-22419S, and by the European Union under the project Robotics and advanced industrial production
+              (reg. no. CZ.02.01.01/00/22_008/0004590).
+            </p>
+            <p>
+              This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank" rel="noopener">Academic Project Page Template</a>, which was adopted from the <a href="https://nerfies.github.io" target="_blank" rel="noopener">Nerfies</a> project page.
+              This website is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================== Simulator pop-up ============================== -->
+  <div class="sim-modal" id="sim-modal" role="dialog" aria-modal="true" aria-labelledby="sim-modal-title" hidden>
+    <div class="sim-modal-backdrop" data-close-sim></div>
+    <div class="sim-modal-panel">
+      <div class="sim-modal-bar">
+        <strong id="sim-modal-title">Interactive simulator</strong>
+        <span class="sim-modal-spacer"></span>
+        <a href="simulator.html" target="_blank" rel="noopener" class="sim-bar-btn" id="sim-newtab"><i class="fas fa-external-link-alt"></i><span>Open in new tab</span></a>
+        <button type="button" class="sim-bar-btn" data-close-sim aria-label="Close simulator"><i class="fas fa-times"></i><span>Close</span></button>
+      </div>
+      <iframe id="sim-frame" title="Interactive simulator of reflection-based relative localization"></iframe>
+    </div>
+  </div>
+
+</body>
+</html>
