@@ -1,5 +1,5 @@
 /* Page behaviour: template helpers (related-work dropdown, BibTeX copy, scroll-to-top),
-   the YouTube slot, result tabs, plot switchers and the simulator pop-up. */
+   the YouTube slot, result tabs, plot switchers, the embedded simulator and the section menu. */
 
 // ---------- template helpers ----------
 function toggleMoreWorks() {
@@ -106,45 +106,77 @@ function setupPlotSwitches() {
   });
 }
 
-// ---------- simulator pop-up ----------
+// ---------- embedded simulator: load when scrolled to, pause while off screen ----------
 function setupSimulator() {
-  const modal = document.getElementById('sim-modal');
   const frame = document.getElementById('sim-frame');
-  let opener = null;
-
-  function open(e) {
-    // Let modified clicks (new tab / window) behave like a normal link.
-    if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1)) return;
-    if (e) e.preventDefault();
-    opener = document.activeElement;
-    if (!frame.getAttribute('src')) frame.setAttribute('src', 'simulator.html');
-    modal.hidden = false;
-    document.body.classList.add('modal-open');
-    modal.querySelector('[data-close-sim].sim-bar-btn').focus();
+  const fsBtn = document.getElementById('sim-fullscreen');
+  if (!frame) return;
+  function load() {
+    if (!frame.getAttribute('src')) frame.setAttribute('src', frame.dataset.src);
   }
-  function close() {
-    modal.hidden = true;
-    document.body.classList.remove('modal-open');
-    if (opener) opener.focus();
+  function setVisible(visible) {
+    if (frame.contentWindow) frame.contentWindow.postMessage({ simVisible: visible }, '*');
   }
 
-  document.querySelectorAll('.js-open-sim').forEach(function (a) { a.addEventListener('click', open); });
-  modal.querySelectorAll('[data-close-sim]').forEach(function (b) { b.addEventListener('click', close); });
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    if (!modal.hidden) close();
-    document.getElementById('moreWorksDropdown').classList.remove('show');
-    document.querySelector('.more-works-btn').classList.remove('active');
-  });
-  if (location.hash === '#demo') open();
+  if ('IntersectionObserver' in window) {
+    let visible = false;
+    new IntersectionObserver(function (entries) {
+      visible = entries[0].isIntersecting;
+      if (visible) load();
+      setVisible(visible || document.fullscreenElement === frame);
+    }, { rootMargin: '200px 0px' }).observe(frame);
+    // The page inside may load after the first visibility message.
+    frame.addEventListener('load', function () { setVisible(visible); });
+  } else {
+    load();
+  }
+
+  if (frame.requestFullscreen) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', function () {
+      load();
+      frame.requestFullscreen();
+    });
+  }
 }
+
+// ---------- section menu on the right: highlight the section in view ----------
+function setupSectionNav() {
+  const links = Array.from(document.querySelectorAll('.section-nav a'));
+  const targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+  let queued = false;
+  function update() {
+    queued = false;
+    const line = window.innerHeight * 0.35;
+    let active = 0;
+    targets.forEach(function (t, i) { if (t && t.getBoundingClientRect().top <= line) active = i; });
+    // At the very bottom the last (short) section can never reach the line.
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) active = links.length - 1;
+    links.forEach(function (a, i) {
+      a.classList.toggle('is-active', i === active);
+      if (i === active) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+    });
+  }
+  window.addEventListener('scroll', function () {
+    if (!queued) { queued = true; requestAnimationFrame(update); }
+  }, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  document.getElementById('moreWorksDropdown').classList.remove('show');
+  document.querySelector('.more-works-btn').classList.remove('active');
+});
 
 document.addEventListener('DOMContentLoaded', function () {
   setupVideo();
   setupTabs();
   setupPlotSwitches();
   setupSimulator();
+  setupSectionNav();
   if (window.__renderMath) {
-    document.querySelectorAll('.insight, .sim-text, .tab-panel').forEach(window.__renderMath);
+    document.querySelectorAll('.insight, .tab-panel').forEach(window.__renderMath);
   }
 });

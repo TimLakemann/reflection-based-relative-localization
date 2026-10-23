@@ -22,10 +22,10 @@
       kicker: "Overview",
       title: "Two views of the same light",
       color: "var(--c-ink)",
-      body: `<p>The observer's camera sees a teammate's blinking LEDs directly, and again as a reflection on the surface below.
-        Each sighting, together with its uncertainty, becomes a cone of positions where the teammate could be.</p>
-        <p>The teammate lies where the two cones meet. Sampling that intersection and filtering it over time gives a 3D
-        position from <strong>one camera and one rangefinder</strong>, with no knowledge of the teammate's size or marker layout.</p>
+      body: `<p>The observer's camera sees a team member's blinking LEDs directly, and again as a reflection on the surface below.
+        Each sighting, together with its uncertainty, becomes a cone of positions where the team member could be.</p>
+        <p>The team member lies where the two cones meet. Sampling that intersection and filtering it over time gives a 3D
+        position from <strong>one camera and one rangefinder</strong>, with no knowledge of the team member's size or marker layout.</p>
         <p class="ref">Use the numbered steps or Next to walk through the pipeline.</p>`,
     },
     {
@@ -85,7 +85,7 @@
       body: `<p>Instead of solving the non-linear cone intersection, \\(n\\) points are drawn uniformly from the reflection cone,
         only above the surface (\\(l_r \\ge \\lVert\\vec a-\\vec r\\rVert\\)). Each one is projected onto the direct cone's axis and kept if it falls inside its elliptical cross-section:</p>
         <div class="eq">\\[\\frac{(\\vec p_i-\\vec p_{i\\parallel})_y^2}{(\\lVert\\vec p_{i\\parallel}\\rVert\\tan\\upsilon_d^{\\max})^2}+\\frac{(\\vec p_i-\\vec p_{i\\parallel})_z^2}{(\\lVert\\vec p_{i\\parallel}\\rVert\\tan\\alpha_d^{\\max})^2}\\le 1\\]</div>
-        <p>The surviving inliers sample where the teammate can be.</p>
+        <p>The surviving inliers sample where the team member can be.</p>
         <p class="ref">Eqs. (15)–(18)</p>`,
     },
     {
@@ -94,7 +94,7 @@
       color: "var(--c-est)",
       body: `<p>The inliers are the observations for a particle filter with \\(n_p\\) particles and a constant-velocity motion model.
         Weights come from a robust Cauchy kernel, and particles are resampled when the effective sample size drops below \\(n_p/2\\).</p>
-        <p>The weighted particle cloud gives the teammate's relative position. It runs onboard at 8.4&nbsp;Hz on an Intel NUC and 6.8&nbsp;Hz on a Raspberry&nbsp;Pi&nbsp;5.</p>
+        <p>The weighted particle cloud gives the team member's relative position. It runs onboard at 8.4&nbsp;Hz on an Intel NUC and 6.8&nbsp;Hz on a Raspberry&nbsp;Pi&nbsp;5.</p>
         <p class="ref">Sec. II, Tab. I</p>`,
     },
   ];

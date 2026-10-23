@@ -7,7 +7,7 @@
   <!-- Primary Meta Tags -->
   <title>Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers</title>
   <meta name="title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
-  <meta name="description" content="UAVs localize their teammates from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder. IEEE RA-L 2026.">
+  <meta name="description" content="UAVs localize their team members from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder. IEEE RA-L 2026.">
   <meta name="keywords" content="relative localization, multi-UAV, UAV swarm, active markers, UV LED, surface reflection, water reflection, UVDAR, particle filter, aerial robotics">
   <meta name="author" content="Tim Lakemann, Daniel Bonilla Licea, Viktor Walter, Martin Saska">
   <meta name="robots" content="index, follow">
@@ -18,12 +18,12 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Multi-Robot Systems Group, CTU in Prague">
   <meta property="og:title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
-  <meta property="og:description" content="UAVs localize their teammates from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder.">
+  <meta property="og:description" content="UAVs localize their team members from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder.">
   <meta property="og:url" content="SITE_URL">
   <meta property="og:image" content="SITE_URL/static/figures/fig1_teaser.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Reflection-Based Relative Localization for Cooperative UAV Teams Using Active Markers">
-  <meta name="twitter:description" content="UAVs localize their teammates from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder.">
+  <meta name="twitter:description" content="UAVs localize their team members from the surface reflections of blinking active markers, using only a camera and a single-beam rangefinder.">
   <meta name="twitter:image" content="SITE_URL/static/figures/fig1_teaser.png">
 
   <!-- Google Scholar -->
@@ -127,7 +127,7 @@
   <main id="main-content">
 
   <!-- ============================== Title ============================== -->
-  <section class="hero">
+  <section class="hero" id="top">
     <div class="hero-body">
       <div class="container is-max-desktop">
         <div class="columns is-centered">
@@ -166,7 +166,7 @@
                 </span>
               </span>
               <span class="link-block">
-                <a href="simulator.html" class="external-link button is-normal is-rounded is-dark js-open-sim">
+                <a href="#simulator" class="external-link button is-normal is-rounded is-dark">
                   <span class="icon"><i class="fas fa-cube"></i></span><span>Interactive demo</span>
                 </a>
               </span>
@@ -188,31 +188,23 @@
       <div class="hero-body">
         <figure class="teaser-figure">
           <img src="static/figures/fig1_teaser.png" alt="Outdoor flight over a pond and an indoor flight in a dark corridor. Blue boxes mark the UAV's active markers; red boxes mark their reflections on the water and on the floor." width="1018" height="527">
-          <figcaption>Outdoor (left) and indoor dark (right) flights. <span class="c-dir">Blue</span>: the teammate's active markers. <span class="c-ref">Red</span>: their reflection on the surface.</figcaption>
         </figure>
         <p class="lead">
-          Reflections of a teammate's LEDs are usually something to filter out. We use them instead.
-          The reflection on calm water or a polished floor gives the observer a second view of the same light,
-          seen from its own mirror image below the surface. With a camera, the teammate's blinking markers and a
-          single-beam rangefinder, that is enough to recover the teammate's 3D position. No prior knowledge of its size,
-          marker layout or the surface's optical properties is needed.
+          We use the <span class="c-ref">reflection</span> of a team member's <span class="c-dir">LEDs</span> on water or floors
+          for relative localization.
         </p>
         <div class="stats">
           <div class="stat">
             <div class="stat-value">&gt;&thinsp;30&nbsp;m</div>
-            <div class="stat-label">reliable range over water, where the UVDAR active-marker baseline breaks down past 20&nbsp;m</div>
+            <div class="stat-label">reliable range over water</div>
           </div>
           <div class="stat">
             <div class="stat-value">&minus;37.3&nbsp;%</div>
-            <div class="stat-label">lower error along the optical axis than UVDAR outdoors (statistically significant)</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">27&nbsp;cm</div>
-            <div class="stat-label">smallest teammate localized, carrying a single compact LED array</div>
+            <div class="stat-label">lower error than UVDAR outdoors</div>
           </div>
           <div class="stat">
             <div class="stat-value">3 sensors</div>
-            <div class="stat-label">camera, active markers and a 1D rangefinder. No radio link between robots.</div>
+            <div class="stat-label">camera, LEDs, rangefinder</div>
           </div>
         </div>
       </div>
@@ -237,7 +229,7 @@
   </section>
 
   <!-- ============================== Abstract ============================== -->
-  <section class="section">
+  <section class="section" id="abstract">
     <div class="container is-max-desktop">
       <div class="columns is-centered has-text-centered">
         <div class="column is-four-fifths">
@@ -265,11 +257,6 @@
   <section class="section hero is-light" id="method">
     <div class="container">
       <h2 class="title is-3 has-text-centered">How it works</h2>
-      <p class="section-intro">
-        The observer sees the teammate's LEDs twice: directly, and reflected in the surface below.
-        Each view defines a cone of positions where the teammate could be. The teammate is where the two cones meet.
-        Click a step to see its part of the geometry.
-      </p>
 
       <div class="method-grid">
         <div class="method-figure">
@@ -299,6 +286,7 @@
         </div>
       </div>
 
+      <!--
       <div class="insight">
         <i class="fas fa-lightbulb"></i>
         <p><strong>Why the reflection gives range.</strong> A stereo camera's baseline is limited by the size of the drone.
@@ -313,40 +301,26 @@
           <figcaption>Fig. 3: (a) Side view: the transmitter lies in the intersection of two elliptical cones (gray area). (b) Top-down view of the observer with the ellipse around the diffuse reflection.</figcaption>
         </figure>
       </details>
+      -->
     </div>
   </section>
 
   <!-- ============================== Interactive simulator ============================== -->
+  <!-- simulator.html is loaded into the iframe when the section scrolls into view (setupSimulator in main.js)
+       and paused again while it is off screen. -->
   <section class="section" id="simulator">
-    <div class="container is-max-desktop">
+    <div class="container sim-container">
       <h2 class="title is-3 has-text-centered">Try it in your browser</h2>
-      <div class="sim-card">
-        <a class="sim-preview js-open-sim" href="simulator.html" aria-label="Launch the interactive simulator">
-          <img src="static/images/simulator_preview.jpg" alt="Screenshot of the interactive simulator: a 3D scene with the observer, the transmitter, both cones and the particle cloud, next to parameter controls." loading="lazy" width="1200" height="750">
-          <span class="sim-play"><i class="fas fa-play"></i> Launch simulator</span>
+      <div class="sim-actions">
+        <button type="button" class="button is-rounded is-outlined-dark" id="sim-fullscreen" hidden>
+          <span class="icon"><i class="fas fa-expand"></i></span><span>Full screen</span>
+        </button>
+        <a href="simulator.html" target="_blank" rel="noopener" class="button is-rounded is-outlined-dark">
+          <span class="icon"><i class="fas fa-external-link-alt"></i></span><span>Open in new tab</span>
         </a>
-        <div class="sim-text">
-          <h3>Reflection-based localization, live</h3>
-          <p>
-            The full pipeline runs in your browser on a synthetic onboard UV camera image: blob centroids, ellipse extremes,
-            both elliptical cones, cone sampling and the particle filter.
-            Drag the transmitter around and see how the estimate responds when you change
-          </p>
-          <ul>
-            <li>surface roughness and <strong>surface tilt</strong> (shows the singularity at \(d = h/\tan|\tau|\))</li>
-            <li>a bias in the observer's <strong>height measurement</strong></li>
-            <li>exposure, threshold \(\sigma\), cone half-angles</li>
-            <li>samples \(n\) and particles \(n_p\), preset to the paper's indoor and outdoor values</li>
-          </ul>
-          <div class="sim-actions">
-            <a href="simulator.html" class="button is-dark is-rounded js-open-sim">
-              <span class="icon"><i class="fas fa-expand"></i></span><span>Open here</span>
-            </a>
-            <a href="simulator.html" target="_blank" rel="noopener" class="button is-rounded is-outlined-dark">
-              <span class="icon"><i class="fas fa-external-link-alt"></i></span><span>Open in new tab</span>
-            </a>
-          </div>
-        </div>
+      </div>
+      <div class="sim-embed">
+        <iframe id="sim-frame" data-src="simulator.html" title="Interactive simulator of reflection-based relative localization" allow="fullscreen" allowfullscreen></iframe>
       </div>
     </div>
   </section>
@@ -379,7 +353,7 @@
         </figure>
         <figure class="gallery-item on-dark">
           <a href="static/images/multi_uav_onboard.png" target="_blank"><img src="static/images/multi_uav_onboard.png" alt="Onboard UV camera view in the multi-UAV experiment with two transmitters and their floor reflections." loading="lazy"></a>
-          <figcaption><strong>Multi-UAV, onboard.</strong> Two teammates and their floor reflections, each identified by its own blinking sequence.</figcaption>
+          <figcaption><strong>Multi-UAV, onboard.</strong> Two team members and their floor reflections, each identified by its own blinking sequence.</figcaption>
         </figure>
       </div>
 
@@ -492,7 +466,7 @@
         <p class="panel-lead">
           Three heterogeneous platforms, all running the method onboard, including the MAV on a Raspberry&nbsp;Pi&nbsp;5.
           Between 105&nbsp;s and 155&nbsp;s the MAV was deliberately flown in front of the observer to cause interference.
-          Outside that interval, both teammates were tracked reliably.
+          Outside that interval, both team members were tracked reliably.
         </p>
         <div class="columns">
           <div class="column">
@@ -641,19 +615,18 @@
     </div>
   </footer>
 
-  <!-- ============================== Simulator pop-up ============================== -->
-  <div class="sim-modal" id="sim-modal" role="dialog" aria-modal="true" aria-labelledby="sim-modal-title" hidden>
-    <div class="sim-modal-backdrop" data-close-sim></div>
-    <div class="sim-modal-panel">
-      <div class="sim-modal-bar">
-        <strong id="sim-modal-title">Interactive simulator</strong>
-        <span class="sim-modal-spacer"></span>
-        <a href="simulator.html" target="_blank" rel="noopener" class="sim-bar-btn" id="sim-newtab"><i class="fas fa-external-link-alt"></i><span>Open in new tab</span></a>
-        <button type="button" class="sim-bar-btn" data-close-sim aria-label="Close simulator"><i class="fas fa-times"></i><span>Close</span></button>
-      </div>
-      <iframe id="sim-frame" title="Interactive simulator of reflection-based relative localization"></iframe>
-    </div>
-  </div>
+  <!-- ============================== Section menu ============================== -->
+  <nav class="section-nav" aria-label="Sections">
+    <a href="#top"><span>Overview</span></a>
+    <a href="#video"><span>Video</span></a>
+    <a href="#abstract"><span>Abstract</span></a>
+    <a href="#method"><span>How it works</span></a>
+    <a href="#simulator"><span>Simulator</span></a>
+    <a href="#experiments"><span>Experiments</span></a>
+    <a href="#results"><span>Results</span></a>
+    <a href="#comparison"><span>Comparison</span></a>
+    <a href="#BibTeX"><span>BibTeX</span></a>
+  </nav>
 
 </body>
 </html>
