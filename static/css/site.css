@@ -21,6 +21,8 @@
 
 /* ---------- title ---------- */
 .publication-venue { margin: 0 0 1.25rem; font-size: .9rem; }
+.publication-venue a { color: inherit; text-decoration: underline; text-decoration-color: var(--border-color); text-underline-offset: 3px; }
+.publication-venue a:hover { color: var(--primary-color); }
 .publication-title { font-size: clamp(1.9rem, 4.2vw, 2.9rem) !important; text-wrap: balance; }
 .publication-authors { margin-bottom: .5rem; }
 .publication-affiliations { color: var(--text-secondary); margin-bottom: 1.5rem; }
