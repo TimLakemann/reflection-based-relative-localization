@@ -289,8 +289,3 @@
   .content.has-text-justified { text-align: left !important; }
 }
 
-/* Placeholder hero button (code not released yet): looks like the others, just not clickable.
-   The template puts its margin on ".link-block a", so give the <span> the same. */
-.link-block .button.is-soon { margin: 8px 4px; cursor: default; }
-.button.is-dark.is-soon:hover { transform: none; background: var(--text-primary) !important; box-shadow: var(--shadow-md); }
-.button.is-soon .soon { font-weight: 500; opacity: .7; margin-left: .3em; }
